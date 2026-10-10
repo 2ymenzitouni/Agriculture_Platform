@@ -1,10 +1,18 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
+from fastapi.staticfiles import StaticFiles
 from app.api.router.router import api_router
 from app.core.database import Base, engine
-import app.models.usersModel  # 1. Import model so SQLAlchemy detects the table schema
-
+import os
+#--------------------------------------------------
+# Import all models here to ensure they are registered with SQLAlchemy
+from app.models.usersModel import User
+from app.models.plantModel import Plant
+from app.models.chatModel import ChatSession
+from app.models.sensor_readingsModel import SensorReading
+from app.models.documentModel import Document, DocumentChunk
+from app.models.disease_detectionModel import DiseaseDetection
+#--------------------------------------------------
 # 2. Trigger table creation in PostgreSQL
 Base.metadata.create_all(bind=engine)
 
@@ -33,7 +41,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
+os.makedirs("static/uploads", exist_ok=True)
+app.mount("/static", StaticFiles(directory="static"), name="static")
 # --------------------------------------------------
 # API Routes
 # --------------------------------------------------

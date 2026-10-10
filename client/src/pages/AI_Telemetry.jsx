@@ -1,0 +1,678 @@
+import React from 'react';
+
+export default function AI_Telemetry() {
+  return (
+    <div className="w-full">
+      <svg className="inline-defs-container" aria-hidden="true" ></svg>
+
+
+<title>AeroSense AI Assistant - Telemetry Diagnostics</title>
+
+
+
+
+
+
+
+
+<svg className="inline-defs-container" aria-hidden="true" ></svg>
+
+
+<title>AeroSense AI Assistant - Telemetry Diagnostics</title>
+
+
+
+
+
+
+
+
+<svg className="inline-defs-container" aria-hidden="true" ></svg>
+
+
+<title>AeroSense AI Assistant - Telemetry Diagnostics</title>
+
+
+
+
+
+
+
+
+<svg className="inline-defs-container" aria-hidden="true" ></svg>
+
+
+<title>AeroSense AI Assistant - Telemetry Diagnostics</title>
+
+
+
+
+
+
+
+
+<svg className="inline-defs-container" aria-hidden="true" ></svg>
+
+
+<title>AeroSense AI Assistant - Telemetry Diagnostics</title>
+
+
+
+
+
+
+
+
+<svg className="inline-defs-container" aria-hidden="true" ></svg>
+
+
+<title>AeroSense AI Assistant - Telemetry Diagnostics</title>
+
+
+
+
+
+
+
+
+<svg className="inline-defs-container" aria-hidden="true" ></svg>
+
+
+<title>AeroSense AI Assistant - Telemetry Diagnostics</title>
+
+
+
+
+
+
+
+
+<svg className="inline-defs-container" aria-hidden="true" ></svg>
+
+
+<title>AeroSense AI Assistant - Telemetry Diagnostics</title>
+
+
+
+
+
+
+
+
+<svg className="inline-defs-container" aria-hidden="true" ></svg>
+
+
+<title>AeroSense AI Assistant - Telemetry Diagnostics</title>
+
+
+
+
+
+
+
+
+<svg className="inline-defs-container" aria-hidden="true" ></svg>
+
+
+<title>AeroSense AI Assistant - Telemetry Diagnostics</title>
+
+
+
+
+
+
+
+
+<svg className="inline-defs-container" aria-hidden="true" ></svg>
+
+
+<title>AeroSense AI Assistant - Telemetry Diagnostics</title>
+
+
+
+
+
+
+
+
+<svg className="inline-defs-container" aria-hidden="true" ></svg>
+
+
+<title>AeroSense AI Assistant - Telemetry Diagnostics</title>
+
+
+
+
+
+
+
+
+<svg className="inline-defs-container" aria-hidden="true" ></svg>
+
+
+<title>AeroSense AI Assistant - Telemetry Diagnostics</title>
+
+
+
+
+
+
+
+
+<svg className="inline-defs-container" aria-hidden="true" ></svg>
+
+
+<title>AeroSense AI Assistant - Telemetry Diagnostics</title>
+
+
+
+
+
+
+
+
+<svg className="inline-defs-container" aria-hidden="true" ></svg>
+
+
+<title>AeroSense AI Assistant - Telemetry Diagnostics</title>
+
+
+
+
+
+
+
+
+<svg className="inline-defs-container" aria-hidden="true" ></svg>
+
+
+<title>AeroSense AI Assistant - Telemetry Diagnostics</title>
+
+
+
+
+
+
+
+
+<svg className="inline-defs-container" aria-hidden="true" ></svg>
+
+
+<title>AeroSense AI Assistant - Telemetry Diagnostics</title>
+
+
+
+
+
+
+
+
+<svg className="inline-defs-container" aria-hidden="true" ></svg>
+
+
+<title>AeroSense AI Assistant - Telemetry Diagnostics</title>
+
+
+
+
+
+
+
+
+
+
+<aside className="fixed top-0 left-0 h-screen w-[68px] z-40 bg-surface-container-lowest border-r border-outline-variant/30 shadow-sm flex flex-col justify-between items-center py-5">
+
+<div className="flex flex-col items-center gap-1">
+<div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-on-primary shadow-sm">
+<span className="material-symbols-outlined text-[24px]">sensors</span>
+</div>
+<span className="font-label-caps text-label-caps text-primary tracking-wider scale-90">AERO</span>
+</div>
+
+<nav className="flex flex-col items-center gap-2 text-center">
+
+<a className="flex items-center justify-center w-11 h-11 rounded-xl text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors text-center" href="#" title="Dashboard">
+<span className="material-symbols-outlined text-[22px]">dashboard</span>
+</a>
+
+<a className="flex items-center justify-center w-11 h-11 rounded-xl text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors text-center" href="#" title="Media Analysis">
+<span className="material-symbols-outlined text-[22px]">perm_media</span>
+</a><a className="flex items-center justify-center w-11 h-11 rounded-xl text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors text-center" href="#" title="File Ingestion">
+<span className="material-symbols-outlined text-[22px]">upload_file</span>
+</a><a className="flex items-center justify-center w-11 h-11 rounded-xl text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors text-center" href="#" title="Plant Registry &amp; Crop Systems"><span className="material-symbols-outlined text-[22px]">potted_plant</span></a>
+
+<a className="flex items-center justify-center w-11 h-11 rounded-xl bg-surface-container text-primary transition-colors text-center" href="#" title="AI Assistant">
+<span className="material-symbols-outlined text-[22px]" >smart_toy</span>
+</a>
+
+<a className="flex items-center justify-center w-11 h-11 rounded-xl text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors text-center" href="#" title="Telemetry Simulator">
+<span className="material-symbols-outlined text-[22px]">tune</span>
+</a>
+
+<a className="flex items-center justify-center w-11 h-11 rounded-xl text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors text-center" href="#" title="Devices">
+<span className="material-symbols-outlined text-[22px]">sensors</span>
+</a>
+</nav>
+
+<div className="flex flex-col items-center gap-2 text-center">
+<button className="flex items-center justify-center w-11 h-11 rounded-xl text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors text-center" title="Settings">
+<span className="material-symbols-outlined text-[22px]">settings</span>
+</button>
+<button className="flex items-center justify-center w-11 h-11 rounded-xl text-outline hover:text-error hover:bg-surface-container-low transition-colors text-center" title="Logout">
+<span className="material-symbols-outlined text-[22px]">logout</span>
+</button>
+</div>
+</aside>
+
+<header className="fixed top-0 right-0 z-30 ml-[68px] w-[calc(100%-68px)] bg-surface-container-lowest/90 backdrop-blur-md border-b border-outline-variant/30 shadow-sm flex justify-between items-center px-6 py-3.5"><div className="flex items-center gap-3 shrink-0"><div className="flex flex-col leading-tight"><span className="font-headline-md text-headline-md text-on-surface font-bold">AeroSense</span><span className="font-label-caps text-label-caps text-on-surface-variant tracking-wider font-bold">Telemetry</span></div><span className="bg-primary/10 text-primary text-label-caps font-label-caps px-2 py-0.5 rounded-full border border-primary/20">v2.4</span></div><div className="flex-1 flex justify-center px-6"><div className="relative w-full max-w-md"><span className="material-symbols-outlined absolute left-3 top-2.5 text-outline text-[18px]">search</span><input className="w-full bg-surface-container-low border border-outline-variant/40 rounded-lg pl-9 pr-3 py-1.5 text-label-md font-label-md text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary" placeholder="Search sensors, logs, or tags..." type="text" /></div></div><div className="flex items-center gap-3 shrink-0"><button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-outline-variant/50 text-label-md font-label-md font-medium text-on-surface hover:bg-surface-container-low transition-colors"><span className="material-symbols-outlined text-[18px]">file_download</span>Export Data</button><button className="p-2 rounded-lg text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors relative" title="Notifications"><span className="material-symbols-outlined text-[20px]">notifications</span><span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-primary ring-2 ring-surface-container-lowest"></span></button><div className="flex items-center gap-2 pl-1"><div className="w-8 h-8 rounded-full bg-primary-container text-on-primary font-bold flex items-center justify-center text-label-sm">AD</div></div></div></header>
+
+<div className="ml-[68px] pt-[61px] w-[calc(100%-68px)] h-[calc(100vh-61px)] flex overflow-hidden">
+
+<section className="w-80 h-full bg-surface-container-lowest border-r border-outline-variant/30 flex flex-col shrink-0">
+
+<div className="p-4 border-b border-outline-variant/20 flex items-center justify-between">
+<div className="flex items-center gap-2">
+<span className="material-symbols-outlined text-primary text-[20px]">forum</span>
+<h2 className="font-headline-md text-headline-md text-on-surface">Conversations</h2>
+</div>
+<button className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-surface-container-low text-primary hover:bg-surface-container text-label-md font-label-md transition-colors" title="Start new diagnostics chat">
+<span className="material-symbols-outlined text-[16px]">add</span>
+          New Chat
+        </button>
+</div>
+
+<div className="px-4 py-2">
+<div className="relative">
+<span className="material-symbols-outlined absolute left-2.5 top-2 text-outline text-[16px]">search</span>
+<input className="w-full bg-surface-container-low border border-outline-variant/30 rounded-lg pl-8 pr-3 py-1.5 text-label-sm font-label-sm text-on-surface focus:outline-none focus:border-primary" placeholder="Search sessions..." type="text" />
+</div>
+</div>
+
+<div className="flex-1 overflow-y-auto px-3 py-2 space-y-1">
+<span className="text-label-caps font-label-caps text-outline px-2 tracking-wider">ACTIVE &amp; RECENT</span>
+
+<div className="p-3 rounded-xl bg-surface-container/70 border border-primary/20 cursor-pointer flex flex-col gap-1 transition-all">
+<div className="flex items-center justify-between">
+<span className="font-label-md font-semibold text-primary truncate">Anomaly check on Tank B</span>
+<span className="w-2 h-2 rounded-full bg-tertiary"></span>
+</div>
+<p className="font-body-md text-label-sm text-on-surface-variant line-clamp-1">Telemetry alert: thermal runaway threshold...</p>
+<div className="flex items-center gap-2 text-label-sm font-label-sm text-outline mt-0.5">
+<span className="material-symbols-outlined text-[14px]">cloud_download</span>
+            Just now • 12 msgs
+          </div>
+</div>
+
+<div className="p-3 rounded-xl hover:bg-surface-container-low border border-transparent cursor-pointer flex flex-col gap-1 transition-all group">
+<div className="flex items-center justify-between">
+<span className="font-label-md font-semibold text-on-surface group-hover:text-primary truncate">Weather forecast summary</span>
+<span className="text-label-sm font-label-sm text-outline">10:45 AM</span>
+</div>
+<p className="font-body-md text-label-sm text-on-surface-variant line-clamp-1">Atmospheric humidity vs. condensation model...</p>
+<div className="flex items-center gap-2 text-label-sm font-label-sm text-outline mt-0.5">
+<span className="material-symbols-outlined text-[14px]">cloud</span>
+            4 nodes verified
+          </div>
+</div>
+
+<div className="p-3 rounded-xl hover:bg-surface-container-low border border-transparent cursor-pointer flex flex-col gap-1 transition-all group">
+<div className="flex items-center justify-between">
+<span className="font-label-md font-semibold text-on-surface group-hover:text-primary truncate">pH balance calibration</span>
+<span className="text-label-sm font-label-sm text-outline">Yesterday</span>
+</div>
+<p className="font-body-md text-label-sm text-on-surface-variant line-clamp-1">Electrode buffer offset aligned to 6.84...</p>
+<div className="flex items-center gap-2 text-label-sm font-label-sm text-outline mt-0.5">
+<span className="material-symbols-outlined text-[14px]">biotech</span>
+            Sensor Probe #04
+          </div>
+</div>
+<span className="text-label-caps font-label-caps text-outline px-2 tracking-wider pt-3 block">PREVIOUS DAYS</span>
+
+<div className="p-3 rounded-xl hover:bg-surface-container-low border border-transparent cursor-pointer flex flex-col gap-1 transition-all group">
+<div className="flex items-center justify-between">
+<span className="font-label-md font-semibold text-on-surface group-hover:text-primary truncate">Hydraulic valve pressure drop</span>
+<span className="text-label-sm font-label-sm text-outline">Mar 22</span>
+</div>
+<p className="font-body-md text-label-sm text-on-surface-variant line-clamp-1">Flow velocity reduced below 1.2 m/s safely...</p>
+</div>
+
+<div className="p-3 rounded-xl hover:bg-surface-container-low border border-transparent cursor-pointer flex flex-col gap-1 transition-all group">
+<div className="flex items-center justify-between">
+<span className="font-label-md font-semibold text-on-surface group-hover:text-primary truncate">Turbine 02 vibration harmonics</span>
+<span className="text-label-sm font-label-sm text-outline">Mar 19</span>
+</div>
+<p className="font-body-md text-label-sm text-on-surface-variant line-clamp-1">Spectral frequency peaks within zone 2 tolerance...</p>
+</div>
+</div>
+
+<div className="p-3.5 bg-surface-container-low border-t border-outline-variant/30 flex items-center justify-between">
+<div className="flex items-center gap-2.5">
+<div className="w-2.5 h-2.5 rounded-full bg-tertiary animate-pulse"></div>
+<div>
+<p className="text-label-sm font-label-sm font-semibold text-on-surface">Telemetry Gateway</p>
+<p className="text-label-sm font-label-sm text-outline">Latency: 14ms (Healthy)</p>
+</div>
+</div>
+<button className="p-1 rounded text-outline hover:text-on-surface" title="Gateway Details">
+<span className="material-symbols-outlined text-[18px]">info</span>
+</button>
+</div>
+</section>
+
+<main className="flex-1 flex flex-col bg-background h-full overflow-hidden">
+
+<header className="h-14 bg-surface-container-lowest border-b border-outline-variant/30 px-6 flex items-center justify-between shrink-0">
+<div className="flex items-center gap-3">
+<div className="w-8 h-8 rounded-lg bg-surface-container flex items-center justify-center text-primary">
+<span className="material-symbols-outlined text-[20px]" >smart_toy</span>
+</div>
+<div>
+<div className="flex items-center gap-2">
+<h1 className="font-headline-md text-headline-md text-on-surface leading-tight">AeroSense AI Assistant</h1>
+<span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-surface-container-low text-tertiary font-label-sm text-label-sm font-semibold border border-tertiary/20">
+<span className="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+                Online (Active)
+              </span>
+</div>
+<p className="text-label-sm font-label-sm text-outline">Automated Telemetry Reasoning Engine • Model v2.4-IoT</p>
+</div>
+</div>
+<div className="flex items-center gap-2">
+<button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-outline-variant/40 bg-surface-container-lowest text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low text-label-md font-label-md transition-colors" title="Export conversation log">
+<span className="material-symbols-outlined text-[18px]">receipt_long</span>
+            Audit Log
+          </button>
+<button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-outline-variant/40 bg-surface-container-lowest text-on-surface-variant hover:text-error hover:border-error/30 hover:bg-error-container/20 text-label-md font-label-md transition-colors" title="Clear current chat stream">
+<span className="material-symbols-outlined text-[18px]">delete_sweep</span>
+            Clear Chat
+          </button>
+</div>
+</header>
+
+<div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
+
+<div className="flex items-center justify-center">
+<span className="px-3 py-1 bg-surface-container rounded-full text-label-sm font-label-sm text-outline border border-outline-variant/30">
+            Today • Telemetry Incident Session #8902-B
+          </span>
+</div>
+
+<div className="flex justify-end gap-3 max-w-4xl ml-auto">
+<div className="flex flex-col items-end">
+<div className="bg-primary text-on-primary rounded-2xl rounded-tr-xs px-4 py-3 shadow-sm max-w-xl">
+<p className="font-body-md text-body-md">Can you run an anomaly check on Tank B? We noticed temperature spikes around 11:20 AM and pressure oscillation.</p>
+</div>
+<div className="flex items-center gap-1 text-label-sm font-label-sm text-outline mt-1 pr-1">
+<span className="">11:24 AM</span>
+<span className="material-symbols-outlined text-[14px] text-primary">done_all</span>
+</div>
+</div>
+<div className="w-8 h-8 rounded-full bg-primary-container text-on-primary flex items-center justify-center text-label-sm font-bold shrink-0">
+            AD
+          </div>
+</div>
+
+<div className="flex gap-3 max-w-5xl">
+<div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center text-on-primary shrink-0 shadow-sm">
+<span className="material-symbols-outlined text-[20px]" >smart_toy</span>
+</div>
+<div className="space-y-4 flex-1">
+
+<div className="bg-surface-container-lowest border border-outline-variant/40 rounded-2xl rounded-tl-xs p-5 shadow-sm">
+<div className="flex items-center justify-between pb-3 border-b border-outline-variant/20 mb-3">
+<span className="font-label-caps text-label-caps text-primary tracking-wider">DIAGNOSTIC TELEMETRY ANALYSIS</span>
+<span className="text-label-sm font-label-sm text-outline">Generated in 240ms</span>
+</div>
+<p className="text-on-surface font-body-md text-body-md mb-2">
+                I ingested the last 30 minutes of multi-sensor telemetry from <strong className="text-primary font-semibold">Storage Tank B (Substation 4)</strong>. An abnormal thermal gradient was detected starting at 11:18 AM, correlating with an unexpected throttle drop on inlet Valve V-12.
+              </p>
+<p className="text-on-surface-variant font-body-md text-body-md">
+                Current conditions exceed baseline thresholds by <strong>+18.4%</strong>. Here is the active telemetry breakdown:
+              </p>
+
+<div className="grid grid-cols-1 md:grid-cols-3 gap-3 my-4">
+
+<div className="p-3.5 bg-surface-container-low rounded-xl border border-outline-variant/30 flex items-center justify-between">
+<div>
+<div className="text-label-caps font-label-caps text-outline tracking-wider">TANK B CORE TEMP</div>
+<div className="text-display-metric font-display-metric text-on-surface mt-0.5">84.2<span className="text-headline-md font-headline-md text-outline">°C</span></div>
+<div className="inline-flex items-center gap-1 text-label-sm font-label-sm text-error mt-1 font-semibold">
+<span className="material-symbols-outlined text-[14px]">arrow_upward</span>
+                      +6.2°C above max
+                    </div>
+</div>
+
+<div className="relative w-14 h-14 flex items-center justify-center">
+<svg className="w-14 h-14 transform -rotate-90">
+<circle className="text-outline-variant/30 fill-none" cx="28" cy="28" r="22" stroke="currentColor" stroke-width="5"></circle>
+<circle className="text-primary-container fill-none" cx="28" cy="28" r="22" stroke="currentColor" stroke-dasharray="138" stroke-dashoffset="35" stroke-linecap="round" stroke-width="5"></circle>
+</svg>
+<span className="absolute font-label-sm text-label-sm font-bold text-on-surface">84%</span>
+</div>
+</div>
+
+<div className="p-3.5 bg-surface-container-low rounded-xl border border-outline-variant/30 flex items-center justify-between">
+<div>
+<div className="text-label-caps font-label-caps text-outline tracking-wider">BAROMETRIC HEAD</div>
+<div className="text-display-metric font-display-metric text-on-surface mt-0.5">4.8<span className="text-headline-md font-headline-md text-outline"> bar</span></div>
+<div className="inline-flex items-center gap-1 text-label-sm font-label-sm text-tertiary mt-1 font-semibold">
+<span className="material-symbols-outlined text-[14px]">check_circle</span>
+                      Within safe yield
+                    </div>
+</div>
+
+<div className="w-16 space-y-1">
+<div className="h-2 w-full bg-outline-variant/30 rounded-full overflow-hidden">
+<div className="h-full bg-secondary w-3/4 rounded-full"></div>
+</div>
+<div className="text-label-sm font-label-sm text-right text-outline">68% lim</div>
+</div>
+</div>
+
+<div className="p-3.5 bg-surface-container-low rounded-xl border border-outline-variant/30 flex items-center justify-between">
+<div>
+<div className="text-label-caps font-label-caps text-outline tracking-wider">COOLANT FLOW V-12</div>
+<div className="text-display-metric font-display-metric text-on-surface mt-0.5">18<span className="text-headline-md font-headline-md text-outline"> L/m</span></div>
+<div className="inline-flex items-center gap-1 text-label-sm font-label-sm text-error mt-1 font-semibold">
+<span className="material-symbols-outlined text-[14px]">warning</span>
+                      Deficit -42%
+                    </div>
+</div>
+<div className="w-10 h-10 rounded-xl bg-error-container/40 text-error flex items-center justify-center">
+<span className="material-symbols-outlined text-[22px]">valve</span>
+</div>
+</div>
+</div>
+
+<div className="p-4 bg-surface-container-low rounded-xl border border-outline-variant/30 mt-3">
+<div className="flex items-center justify-between mb-2">
+<div className="flex items-center gap-2">
+<span className="material-symbols-outlined text-primary text-[18px]">monitoring</span>
+<span className="font-label-md font-semibold text-on-surface">30-Minute Temperature Spike Spectrum (Probe T-B1)</span>
+</div>
+<span className="text-label-sm font-label-sm text-outline">Sample rate: 100ms</span>
+</div>
+<div className="w-full h-24 relative flex items-end">
+
+<svg className="w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 500 90">
+
+<line className="text-outline-variant/30" stroke="currentColor" stroke-dasharray="4 4" x1="0" x2="500" y1="20" y2="20"></line>
+<line className="text-outline-variant/30" stroke="currentColor" stroke-dasharray="4 4" x1="0" x2="500" y1="60" y2="60"></line>
+
+<defs>
+<linearGradient id="chartGradient" x1="0" x2="0" y1="0" y2="1">
+<stop offset="0%" stop-color="#2563eb" stop-opacity="0.3"></stop>
+<stop offset="100%" stop-color="#2563eb" stop-opacity="0.0"></stop>
+</linearGradient>
+</defs>
+<path d="M 0 65 L 50 63 L 100 66 L 150 60 L 200 62 L 250 55 L 290 40 L 320 25 L 350 18 L 380 22 L 420 30 L 460 28 L 500 24 L 500 90 L 0 90 Z" fill="url(#chartGradient)"></path>
+<path d="M 0 65 L 50 63 L 100 66 L 150 60 L 200 62 L 250 55 L 290 40 L 320 25 L 350 18 L 380 22 L 420 30 L 460 28 L 500 24" fill="none" stroke="#2563eb" stroke-linecap="round" stroke-width="2.5"></path>
+
+<circle className="fill-error stroke-surface-container-lowest" cx="350" cy="18" r="4" stroke-width="2"></circle>
+</svg>
+</div>
+<div className="flex justify-between text-label-sm font-label-sm text-outline mt-1.5 pt-1 border-t border-outline-variant/20">
+<span className="">10:55 AM (65.8°C)</span>
+<span className="">11:18 AM (Anomaly Trigger)</span>
+<span className="text-error font-medium">11:20 AM Peak (84.2°C)</span>
+<span className="">11:25 AM (Live)</span>
+</div>
+</div>
+
+<div className="mt-4 pt-3 border-t border-outline-variant/20">
+<div className="flex items-center gap-1.5 text-label-caps font-label-caps text-on-surface-variant font-bold mb-2">
+<span className="material-symbols-outlined text-[16px] text-tertiary">check_circle</span>
+                  RECOMMENDED CORRECTIVE ACTIONS
+                </div>
+<div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+
+<div className="p-3 rounded-lg border border-primary/20 bg-surface-container-low flex items-center justify-between">
+<div>
+<p className="font-label-md font-semibold text-on-surface">Auto-adjust Coolant Valve</p>
+<p className="text-label-sm font-label-sm text-outline">Increase flow to 35 L/m to counter gradient</p>
+</div>
+<button className="px-2.5 py-1.5 bg-primary text-on-primary rounded-lg text-label-sm font-label-sm font-semibold hover:bg-primary/90 transition-all shrink-0">
+                      Apply Action
+                    </button>
+</div>
+
+<div className="p-3 rounded-lg border border-outline-variant/30 bg-surface-container-lowest flex items-center justify-between">
+<div>
+<p className="font-label-md font-semibold text-on-surface">Secondary Fan Overdrive</p>
+<p className="text-label-sm font-label-sm text-outline">Spins auxiliary fan bank B-2 up to 100%</p>
+</div>
+<button className="px-2.5 py-1.5 border border-outline-variant/50 text-on-surface rounded-lg text-label-sm font-label-sm font-medium hover:bg-surface-container-low transition-all shrink-0">
+                      Execute
+                    </button>
+</div>
+</div>
+</div>
+
+<div className="flex items-center justify-between mt-4 pt-2 border-t border-outline-variant/10 text-label-sm font-label-sm text-outline">
+<div className="flex items-center gap-3">
+<button className="flex items-center gap-1 hover:text-on-surface" title="Copy diagnosis"><span className="material-symbols-outlined text-[16px]">content_copy</span> Copy</button>
+<button className="flex items-center gap-1 hover:text-on-surface" title="Create incident report"><span className="material-symbols-outlined text-[16px]">assignment</span> Generate Incident Ticket</button>
+<button className="flex items-center gap-1 hover:text-on-surface" title="Good response"><span className="material-symbols-outlined text-[16px]">thumb_up</span></button>
+<button className="flex items-center gap-1 hover:text-on-surface" title="Needs improvement"><span className="material-symbols-outlined text-[16px]">thumb_down</span></button>
+</div>
+<span className="">11:24 AM • Verified by Model Confidence: 98.4%</span>
+</div>
+</div>
+
+<div className="flex flex-wrap items-center gap-2 pt-1 pl-1">
+<span className="text-label-caps font-label-caps text-outline tracking-wider">SUGGESTED ACTIONS:</span>
+<button className="px-3 py-1 rounded-full bg-surface-container-lowest border border-outline-variant/40 hover:border-primary text-label-sm font-label-sm text-on-surface hover:text-primary transition-all flex items-center gap-1 shadow-sm">
+<span className="material-symbols-outlined text-[14px] text-primary">sensors</span>
+                Check sensor status
+              </button>
+<button className="px-3 py-1 rounded-full bg-surface-container-lowest border border-outline-variant/40 hover:border-primary text-label-sm font-label-sm text-on-surface hover:text-primary transition-all flex items-center gap-1 shadow-sm">
+<span className="material-symbols-outlined text-[14px] text-primary">cloud_queue</span>
+                Summarize weather trends
+              </button>
+<button className="px-3 py-1 rounded-full bg-surface-container-lowest border border-outline-variant/40 hover:border-primary text-label-sm font-label-sm text-on-surface hover:text-primary transition-all flex items-center gap-1 shadow-sm">
+<span className="material-symbols-outlined text-[14px] text-primary">cyclone</span>
+                Simulate pump cycle
+              </button>
+<button className="px-3 py-1 rounded-full bg-surface-container-lowest border border-outline-variant/40 hover:border-primary text-label-sm font-label-sm text-on-surface hover:text-primary transition-all flex items-center gap-1 shadow-sm">
+<span className="material-symbols-outlined text-[14px] text-primary">lock_reset</span>
+                Reset Thermal Interlock
+              </button>
+</div>
+</div>
+</div>
+
+<div className="flex justify-end gap-3 max-w-4xl ml-auto">
+<div className="flex flex-col items-end">
+<div className="bg-primary text-on-primary rounded-2xl rounded-tr-xs px-4 py-3 shadow-sm max-w-xl">
+<p className="font-body-md text-body-md">Simulate pump cycle with coolant flow at 35 L/m. How fast will core temperature normalize to 65°C?</p>
+</div>
+<div className="flex items-center gap-1 text-label-sm font-label-sm text-outline mt-1 pr-1">
+<span className="">11:26 AM</span>
+<span className="material-symbols-outlined text-[14px] text-primary">done_all</span>
+</div>
+</div>
+<div className="w-8 h-8 rounded-full bg-primary-container text-on-primary flex items-center justify-center text-label-sm font-bold shrink-0">
+            AD
+          </div>
+</div>
+
+<div className="flex gap-3 max-w-5xl">
+<div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center text-on-primary shrink-0 shadow-sm">
+<span className="material-symbols-outlined text-[20px]" >smart_toy</span>
+</div>
+<div className="bg-surface-container-lowest border border-outline-variant/40 rounded-2xl rounded-tl-xs p-5 shadow-sm space-y-3 flex-1">
+<div className="flex items-center justify-between">
+<span className="font-label-caps text-label-caps text-primary tracking-wider">PREDICTIVE SIMULATION RESULT</span>
+<span className="inline-flex items-center gap-1 text-label-sm font-label-sm text-tertiary font-semibold">
+<span className="material-symbols-outlined text-[16px]">verified</span> Safe Trajectory
+              </span>
+</div>
+<p className="text-on-surface font-body-md text-body-md">
+              Running dynamic thermodynamic simulation using digital twin profile <span className="font-semibold text-primary">DT-TankB-Hydro</span>. At <strong>35 L/m</strong>, temperature is projected to drop below nominal threshold (65.0°C) within <strong className="text-primary">6 minutes 40 seconds</strong>.
+            </p>
+
+<div className="grid grid-cols-3 gap-3 p-3 bg-surface-container-low rounded-xl border border-outline-variant/30 text-center">
+<div>
+<p className="text-label-caps font-label-caps text-outline">ESTIMATED DROP TIME</p>
+<p className="text-headline-md font-headline-md font-bold text-on-surface mt-0.5">6m 40s</p>
+</div>
+<div className="border-x border-outline-variant/30">
+<p className="text-label-caps font-label-caps text-outline">PUMP POWER DRAW</p>
+<p className="text-headline-md font-headline-md font-bold text-on-surface mt-0.5">2.4 kW <span className="text-label-sm font-normal text-outline">(+0.3)</span></p>
+</div>
+<div>
+<p className="text-label-caps font-label-caps text-outline">SYSTEM STABILITY</p>
+<p className="text-headline-md font-headline-md font-bold text-tertiary mt-0.5">Optimal</p>
+</div>
+</div>
+<div className="flex items-center gap-3 pt-2">
+<button className="px-3.5 py-1.5 rounded-lg bg-primary text-on-primary text-label-md font-label-md font-semibold hover:bg-primary/90 flex items-center gap-1.5 shadow-sm">
+<span className="material-symbols-outlined text-[16px]">play_arrow</span>
+                Commit Simulation to PLC Controller
+              </button>
+<button className="px-3.5 py-1.5 rounded-lg border border-outline-variant/50 text-on-surface text-label-md font-label-md font-medium hover:bg-surface-container-low">
+                Adjust Parameters
+              </button>
+</div>
+</div>
+</div>
+</div>
+
+<footer className="p-4 bg-surface-container-lowest border-t border-outline-variant/30 shrink-0">
+<div className="max-w-5xl mx-auto space-y-2">
+
+<div className="relative bg-surface-container-low border border-outline-variant/40 rounded-xl p-2 flex items-center gap-2 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 transition-all shadow-sm">
+
+<button className="p-2 rounded-lg text-outline hover:text-on-surface hover:bg-surface-container transition-colors shrink-0" title="Attach telemetry dump, sensor log, or CSV">
+<span className="material-symbols-outlined text-[20px]">attach_file</span>
+</button>
+
+<input className="w-full bg-transparent border-0 focus:ring-0 text-body-md font-body-md text-on-surface placeholder:text-outline/70 focus:outline-none" placeholder="Ask AeroSense AI diagnostic questions, run sensor tests, or trigger automated commands..." type="text" />
+
+<button className="p-2 rounded-lg text-outline hover:text-primary hover:bg-surface-container transition-colors shrink-0" title="Voice Telemetry Input">
+<span className="material-symbols-outlined text-[20px]">mic</span>
+</button>
+
+<button className="w-10 h-10 rounded-lg bg-primary text-on-primary flex items-center justify-center hover:bg-primary/90 transition-all shrink-0 shadow-sm active:scale-95" title="Send message">
+<span className="material-symbols-outlined text-[20px]">send</span>
+</button>
+</div>
+
+<div className="flex items-center justify-between px-1 text-label-sm font-label-sm text-outline">
+<div className="flex items-center gap-1.5">
+<span className="material-symbols-outlined text-[14px]">shield</span>
+<span className="">Encrypted Diagnostics Channel • ISO 27001 Certified IoT Telemetry Protocol</span>
+</div>
+<span className="">Press <kbd className="px-1.5 py-0.5 bg-surface-container rounded border border-outline-variant/40 text-label-sm">Enter ↵</kbd> to execute</span>
+</div>
+</div>
+</footer>
+</main>
+</div>
+
+
+
+    </div>
+  );
+}

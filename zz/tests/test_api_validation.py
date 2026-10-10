@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
-from app import app
+from zz.app import app
 
 
 class ApiValidationTests(unittest.TestCase):
