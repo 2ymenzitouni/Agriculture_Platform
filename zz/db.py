@@ -9,7 +9,7 @@ from psycopg.rows import dict_row
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql://postgres:postgres@localhost:5432/agri_rag",
+    "postgresql://postgres:&Aymenzitouni2017@localhost:5432/agri_rag",
 )
 
 

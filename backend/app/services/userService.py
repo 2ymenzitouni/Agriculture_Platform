@@ -1,4 +1,5 @@
 from typing import List, Optional
+from uuid import UUID
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 
@@ -11,8 +12,8 @@ class UserService:
     def __init__(self, db: Session):
         self.db = db
 
-    def get_by_id(self, user_id: int) -> Optional[User]:
-        """Fetch a single user by primary key ID."""
+    def get_by_id(self, user_id: UUID) -> Optional[User]:
+        """Fetch a single user by primary key ID (UUID)."""
         return self.db.query(User).filter(User.id == user_id).first()
 
     def get_by_email(self, email: str) -> Optional[User]:
@@ -33,18 +34,16 @@ class UserService:
             )
 
         db_user = User(
-            full_name=user_in.full_name,
+            name=user_in.name,
             email=user_in.email,
             password_hash=get_password_hash(user_in.password),
-            language=user_in.language,
-            role=user_in.role,
         )
         self.db.add(db_user)
         self.db.commit()
         self.db.refresh(db_user)
         return db_user
 
-    def update(self, user_id: int, user_in: UserUpdate) -> User:
+    def update(self, user_id: UUID, user_in: UserUpdate) -> User:
         """Update existing user fields."""
         db_user = self.get_by_id(user_id)
         if not db_user:
@@ -68,7 +67,7 @@ class UserService:
             return None
         return user
 
-    def delete(self, user_id: int) -> User:
+    def delete(self, user_id: UUID) -> User:
         """Delete a user account."""
         db_user = self.get_by_id(user_id)
         if not db_user:

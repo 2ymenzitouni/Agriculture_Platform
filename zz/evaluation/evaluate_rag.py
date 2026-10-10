@@ -26,7 +26,7 @@ def main() -> int:
     if not args.with_llm:
         os.environ["RAG_DISABLE_LLM"] = "1"
 
-    from rag.query_rag import answer_question
+    from zz.rag.query_rag import answer_question
 
     cases = json.loads((Path(__file__).parent / "questions.json").read_text(encoding="utf-8"))
     source_hits = 0

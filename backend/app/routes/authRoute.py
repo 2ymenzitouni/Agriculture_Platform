@@ -2,14 +2,14 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.api.router.dependencies import get_db
-from app.core.security import create_access_token, verify_password
+from app.core.security import create_access_token, verify_password, get_password_hash
 from app.models.usersModel import User
 from app.schemas.userSchema import UserCreate, UserLogin, UserResponse
 
 router = APIRouter()
 
 
-@router.post("/register", response_model=UserResponse)
+@router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 def register(user_in: UserCreate, db: Session = Depends(get_db)):
     db_user = db.query(User).filter(User.email == user_in.email).first()
     if db_user:
@@ -19,14 +19,10 @@ def register(user_in: UserCreate, db: Session = Depends(get_db)):
         )
 
     # Hash the password before saving
-    from app.core.security import get_password_hash
-
     new_user = User(
-        full_name=user_in.full_name,
+        name=user_in.name,
         email=user_in.email,
         password_hash=get_password_hash(user_in.password),
-        language=user_in.language,
-        role=user_in.role,
     )
     db.add(new_user)
     db.commit()
@@ -50,14 +46,8 @@ def login(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Inactive user account",
-        )
-
     # 3. Generate access token
-    access_token = create_access_token(subject=user.id)
+    access_token = create_access_token(subject=str(user.id))
     return {
         "access_token": access_token,
         "token_type": "bearer",

@@ -4,9 +4,9 @@ from unittest.mock import patch
 
 from langchain_core.documents import Document
 
-from rag.build_index import extract_crop_and_disease
-from rag.query_rag import normalize_crop, retrieve_scored
-from vision.inference import _class_label
+from zz.rag.build_index import extract_crop_and_disease
+from zz.rag.query_rag import normalize_crop, retrieve_scored
+from zz.vision.inference import _class_label
 
 
 BASE_DIR = Path(__file__).parent.parent

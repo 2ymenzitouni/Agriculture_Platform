@@ -34,7 +34,7 @@ services:
       POSTGRES_PASSWORD: agriai_123456789
 
     ports:
-      - "5433:5432"
+      - "54320:5432"
 
     volumes:
       - postgres_data:/var/lib/postgresql/data
