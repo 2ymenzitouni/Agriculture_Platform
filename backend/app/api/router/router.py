@@ -4,6 +4,7 @@ from fastapi import APIRouter
 # Import them here as you create them.
 #
 from app.routes.authRoute import router as auth_router
+from app.routes.disease_detectionRoute import router as disease_router
 # from app.routes.dashboard import router as dashboard_router
 # from app.routes.farms import router as farms_router
 from app.routes.sensor_readingsRoute import router as sensors_router
@@ -67,6 +68,11 @@ api_router.include_router(
     prefix="",  # Prefix is already defined as "/plants" inside plantRoute.py
 )
 #
+# Disease detection routes
+api_router.include_router(
+    disease_router,
+    prefix="",  # Prefix is already defined as "/diseases" inside diseaseRoute.py
+)
 # api_router.include_router(
 #     diseases_router,
 #     prefix="/diseases",
