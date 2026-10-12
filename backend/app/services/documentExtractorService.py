@@ -1,73 +1,241 @@
+
 import os
 import uuid
+import time
+import random
+from pathlib import Path
+
 from fastapi import UploadFile, HTTPException, status
 from sqlalchemy.orm import Session
+from google import genai
+from google.genai import types
+from dotenv import load_dotenv
 
 from app.models.documentModel import Document, DocumentChunk
-from app.utils.gemini_extractor import extract_data_with_gemini
 
-UPLOAD_DIR = "static/documents"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+load_dotenv()
+
+UPLOAD_DIR = Path("static/documents")
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+EMBEDDING_MODEL = "gemini-embedding-2"
+EMBEDDING_DIMENSIONS = 768
+MAX_RETRIES = 4
+
+
+def _get_status_code(exc: Exception):
+    """Extract an HTTP status code from a Gemini SDK exception."""
+    code = getattr(exc, "code", None)
+
+    if isinstance(code, int):
+        return code
+
+    code = getattr(exc, "status_code", None)
+
+    if isinstance(code, int):
+        return code
+
+    # Fallback for SDK exceptions with different representations.
+    message = str(exc)
+    for status_code in (408, 429, 500, 502, 503, 504):
+        if str(status_code) in message:
+            return status_code
+
+    return None
+
+
+def _call_with_retry(func):
+    """Retry transient API failures with exponential backoff."""
+    retryable_codes = {408, 429, 500, 502, 503, 504}
+
+    for attempt in range(MAX_RETRIES):
+        try:
+            return func()
+
+        except Exception as exc:
+            code = _get_status_code(exc)
+
+            if code not in retryable_codes:
+                raise
+
+            if attempt == MAX_RETRIES - 1:
+                raise
+
+            delay = min(2 ** (attempt + 1), 30)
+            delay += random.uniform(0, 1)
+
+            print(
+                f"Gemini API error {code}. "
+                f"Retrying in {delay:.1f} seconds "
+                f"({attempt + 1}/{MAX_RETRIES - 1})"
+            )
+            time.sleep(delay)
+
 
 class DocumentExtractorService:
     def __init__(self, db: Session):
         self.db = db
 
-    def process_and_extract_file(self, user_id: uuid.UUID, file: UploadFile) -> Document:
-        # 1. Save file locally
-        file_extension = file.filename.split(".")[-1].lower() if file.filename else ""
-        unique_filename = f"{uuid.uuid4()}.{file_extension}"
-        file_path = os.path.join(UPLOAD_DIR, unique_filename)
-
-        with open(file_path, "wb") as buffer:
-            content = file.file.read()
-            buffer.write(content)
-            file_size = len(content)
-
-        # 2. Create parent Document record in DB
-        db_doc = Document(
-            user_id=user_id,
-            filename=file.filename,
-            file_path=file_path,
-            file_type=file_extension,
-            file_size=file_size
-        )
-        self.db.add(db_doc)
-        self.db.commit()
-        self.db.refresh(db_doc)
-
-        try:
-            # 3. Use the Gemini utility function to extract data/content from the file
-            extracted_text = extract_data_with_gemini(
-                file_path=file_path, 
-                prompt="Extract all key technical details, facts, and text from this document comprehensively."
+        api_key = os.getenv("GEMINI_API_KEY")
+        if not api_key:
+            raise RuntimeError(
+                "GEMINI_API_KEY is missing from environment variables."
             )
 
-            # 4. Chunk the Gemini-extracted text and save into `document_chunks`
-            chunks = self._chunk_text(extracted_text, chunk_size=500, overlap=50)
+        self.client = genai.Client(api_key=api_key)
+
+    def process_and_extract_file(
+        self,
+        user_id: uuid.UUID,
+        file: UploadFile,
+    ) -> Document:
+
+        file_path = None
+        db_doc = None
+
+        try:
+            # 1. Save the uploaded file locally.
+            original_filename = file.filename or "document"
+            file_extension = Path(original_filename).suffix.lower().lstrip(".")
+
+            unique_filename = f"{uuid.uuid4()}.{file_extension}"
+            file_path = UPLOAD_DIR / unique_filename
+
+            content = file.file.read()
+
+            if not content:
+                raise HTTPException(
+                    status_code=400,
+                    detail="The uploaded file is empty.",
+                )
+
+            file_path.write_bytes(content)
+
+            # 2. Create the document record without committing yet.
+            db_doc = Document(
+                user_id=user_id,
+                filename=original_filename,
+                file_path=str(file_path),
+                file_type=file_extension,
+                file_size=len(content),
+            )
+
+            self.db.add(db_doc)
+            self.db.flush()
+
+            # 3. Extract document content with Gemini.
+            extracted_text = _call_with_retry(
+                lambda: self.client.models.generate_content(
+                    model="gemini-3.8-flash",
+                    contents=[
+                        self.client.files.upload(file=str(file_path)),
+                        (
+                            "Extract the key technical details, facts, "
+                            "and relevant text from this document. "
+                            "Preserve important values, units, headings, "
+                            "and recommendations."
+                        ),
+                    ],
+                )
+            ).text
+
+            if not extracted_text or not extracted_text.strip():
+                raise ValueError(
+                    "Gemini returned no text from the document."
+                )
+
+            # 4. Split the extracted text into chunks.
+            chunks = self._chunk_text(
+                extracted_text,
+                chunk_size=500,
+                overlap=50,
+            )
+
+            if not chunks:
+                raise ValueError(
+                    "No text chunks were generated from the document."
+                )
+
+            # 5. Generate embeddings and add chunks to PostgreSQL.
             for idx, chunk_content in enumerate(chunks):
+                embed_response = _call_with_retry(
+                    lambda: self.client.models.embed_content(
+                        model=EMBEDDING_MODEL,
+                        contents=chunk_content,
+                        config=types.EmbedContentConfig(
+                            output_dimensionality=EMBEDDING_DIMENSIONS
+                        ),
+                    )
+                )
+
+                if (
+                    not embed_response.embeddings
+                    or not embed_response.embeddings[0].values
+                ):
+                    raise ValueError(
+                        f"Gemini returned no embedding for chunk {idx}."
+                    )
+
+                vector_embedding = embed_response.embeddings[0].values
+
+                if len(vector_embedding) != EMBEDDING_DIMENSIONS:
+                    raise ValueError(
+                        f"Expected {EMBEDDING_DIMENSIONS} embedding "
+                        f"dimensions, got {len(vector_embedding)}."
+                    )
+
                 db_chunk = DocumentChunk(
                     document_id=db_doc.id,
                     chunk_index=idx,
-                    content=chunk_content
+                    content=chunk_content,
+                    embedding=vector_embedding,
                 )
-                self.db.add(db_chunk)
-            
-            self.db.commit()
 
-        except Exception as e:
+                self.db.add(db_chunk)
+
+            # 6. Commit the document and all chunks together.
+            self.db.commit()
+            self.db.refresh(db_doc)
+
+            return db_doc
+
+        except Exception as exc:
+            self.db.rollback()
+
+            # Remove the saved file if processing failed.
+            if file_path is not None:
+                try:
+                    file_path.unlink(missing_ok=True)
+                except OSError as cleanup_error:
+                    print(f"File cleanup failed: {cleanup_error}")
+
+            if isinstance(exc, HTTPException):
+                raise
+
+            print(f"Document processing failed: {exc}")
+
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Error extracting data with Gemini LLM: {str(e)}"
-            )
+                detail=f"Document processing failed: {str(exc)}",
+            ) from exc
 
-        return db_doc
+    def _chunk_text(
+        self,
+        text: str,
+        chunk_size: int = 500,
+        overlap: int = 50,
+    ) -> list[str]:
+        if chunk_size <= 0 or overlap < 0 or overlap >= chunk_size:
+            raise ValueError("Invalid chunk size or overlap.")
 
-    def _chunk_text(self, text: str, chunk_size: int = 500, overlap: int = 50) -> list[str]:
         words = text.split()
         chunks = []
-        for i in range(0, len(words), chunk_size - overlap):
+        step = chunk_size - overlap
+
+        for i in range(0, len(words), step):
             chunk = " ".join(words[i:i + chunk_size])
+
             if chunk.strip():
                 chunks.append(chunk)
+
         return chunks
