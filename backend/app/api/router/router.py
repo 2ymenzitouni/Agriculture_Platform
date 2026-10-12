@@ -13,7 +13,7 @@ from app.routes.plantRoute import router as plants_router
 # from app.routes.disease_detectionRoute import router as diseases_router
 # from app.routes.detection import router as detection_router
 # from app.routes.chat import router as chat_router
-# from app.routes.documents import router as documents_router
+from app.routes.documentRoute import router as documents_router
 # from app.routes.weather import router as weather_router
 # from app.routes.analytics import router as analytics_router
 # from app.routes.notifications import router as notifications_router
@@ -91,11 +91,12 @@ api_router.include_router(
 #     tags=["AI Assistant"],
 # )
 #
-# api_router.include_router(
-#     documents_router,
-#     prefix="/documents",
-#     tags=["RAG Documents"],
-# )
+
+api_router.include_router(
+    documents_router,
+    prefix="/documents",
+    tags=["RAG Documents"],
+)
 #
 # api_router.include_router(
 #     weather_router,
