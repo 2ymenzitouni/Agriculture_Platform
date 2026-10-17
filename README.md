@@ -15,7 +15,7 @@
 
 > **Current Project Status**:
 > - 🟢 **Backend (FastAPI)**: Fully operational with all database models, security, RAG pipeline, YOLOv8 vision inference, and REST endpoints.
-> - 🟡 **Frontend (React + Vite)**: Complete UI pages and dashboards developed (authentication, plants, IoT simulator, knowledge base, AI telemetry, weather). **Frontend is currently using mock data and is not yet connected to the backend API.**
+> - 🟡 **Frontend (React + Vite)**: Authentication and plant registration are connected to the backend API; other feature pages may still use mock data.
 
 ---
 
@@ -364,10 +364,10 @@ Authenticate a user and receive a Bearer JWT access token.
 
 #### `POST /api/plants/`
 Register a new plant or crop profile for a user.
+- **Authentication**: Required. Send the access token as `Authorization: Bearer <token>`. The plant is linked to the authenticated user automatically.
 - **Request Body** (`application/json`):
   ```json
   {
-    "user_id": "e4b2d184-48f5-4d76-92cb-5079a4da9b37",
     "name": "Hydroponic Lettuce Bed 1",
     "crop": "Lettuce",
     "variety": "Butterhead",
@@ -388,6 +388,9 @@ Register a new plant or crop profile for a user.
     "created_at": "2026-10-13T18:05:00.000000"
   }
   ```
+
+#### `GET /api/plants/mine`
+Retrieve all plants belonging to the authenticated user. Requires `Authorization: Bearer <token>`.
 
 #### `GET /api/plants/user/{user_id}`
 Retrieve all plants belonging to a user.
@@ -569,10 +572,15 @@ curl -X POST http://localhost:8000/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"aymen@test.com","password":"mypassword123"}'
 
-# 4. Create a plant (replace user_id with your generated UUID)
+# 4. Create a plant (send the access token returned by login)
 curl -X POST http://localhost:8000/api/plants/ \
   -H "Content-Type: application/json" \
-  -d '{"user_id":"YOUR_USER_ID","name":"Cherry Tomato Plant 1","crop":"Tomato","variety":"Cherry","growth_stage":"Flowering"}'
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -d '{"name":"Cherry Tomato Plant 1","crop":"Tomato","variety":"Cherry","growth_stage":"Flowering"}'
+
+# List plants owned by the logged-in user
+curl http://localhost:8000/api/plants/mine \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
 
 # 5. Ingest sensor reading (replace plant_id with your plant UUID)
 curl -X POST http://localhost:8000/api/sensors/sensor-readings/ \
@@ -587,23 +595,14 @@ curl -X POST http://localhost:8000/api/chat/ \
 
 ---
 
-## 🔌 Connecting Frontend with Backend (Roadmap)
+## 🔌 Remaining Frontend Integrations
 
-To bridge the React client with the FastAPI backend:
+The shared Axios client is configured in `client/src/services/app.js` and attaches the JWT from `localStorage`. Authentication and plant registration are connected. Remaining feature integrations:
 
-1. **Configure API Base URL in React**:
-   Add an API client or `.env` file in `client/`:
-   ```env
-   VITE_API_BASE_URL=http://localhost:8000/api
-   ```
-2. **Setup Axios or Fetch Service (`client/src/services/api.js`)**:
-   - Attach the JWT `Authorization: Bearer <token>` from localStorage to outgoing requests.
-   - Map `User_Register_Login.jsx` to `/api/auth/login` and `/api/auth/register`.
-   - Map `Plant_Management.jsx` to `/api/plants/`.
-   - Map `IoT_Simulator.jsx` to `/api/sensors/sensor-readings/`.
-   - Map `Image_Upload.jsx` to `/api/diseases/detect`.
-   - Map `AI_Telemetry.jsx` to `/api/chat/`.
-   - Map `Knowledge_Base.jsx` to `/api/documents/documents/upload-ai`.
+- Map `IoT_Simulator.jsx` to `/api/sensors/sensor-readings/`.
+- Map `Image_Upload.jsx` to `/api/diseases/detect`.
+- Map `AI_Telemetry.jsx` to `/api/chat/`.
+- Map `Knowledge_Base.jsx` to `/api/documents/documents/upload-ai`.
 3. **CORS Configuration**:
    The backend already allows requests from `http://localhost:5173` via `CORSMiddleware` in `backend/app/main.py`.
 
