@@ -1,8 +1,9 @@
-import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import LogoutButton from './LogoutButton';
 
 export default function Navbar() {
   const location = useLocation();
+  const isAuthenticated = Boolean(localStorage.getItem('access_token'));
 
   const navItems = [
     { path: '/', label: 'Dashboard', icon: 'dashboard' },
@@ -11,7 +12,7 @@ export default function Navbar() {
     { path: '/ai-chat', label: 'AI Assistant', icon: 'chat' },
     { path: '/image-analysis', label: 'Image Analysis', icon: 'image' },
     { path: '/knowledge-base', label: 'Knowledge Base', icon: 'database' },
-    { path: '/auth', label: 'Auth Gateway', icon: 'lock' },
+    ...(!isAuthenticated ? [{ path: '/auth', label: 'Sign In', icon: 'lock' }] : []),
   ];
 
   return (
@@ -42,6 +43,15 @@ export default function Navbar() {
             </Link>
           );
         })}
+        {isAuthenticated && (
+          <LogoutButton
+            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-error transition-all"
+            title="Logout"
+          >
+            <span className="material-symbols-outlined text-base">logout</span>
+            <span className="hidden md:inline">Logout</span>
+          </LogoutButton>
+        )}
       </div>
     </nav>
   );

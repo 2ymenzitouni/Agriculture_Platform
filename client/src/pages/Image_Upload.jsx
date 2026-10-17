@@ -1,4 +1,4 @@
-import React from 'react';
+import LogoutButton from '../components/LogoutButton';
 
 export default function Image_Upload() {
   return (
@@ -49,10 +49,10 @@ export default function Image_Upload() {
 <span className="material-symbols-outlined">settings</span>
 <span className="sr-only">Settings</span>
 </button>
-<button className="flex items-center justify-center w-11 h-11 rounded-xl text-outline dark:text-outline-variant hover:text-error hover:bg-error-container/40 transition-colors transition-all duration-200 active:scale-95" title="Logout" type="button">
+<LogoutButton className="flex items-center justify-center w-11 h-11 rounded-xl text-outline dark:text-outline-variant hover:text-error hover:bg-error-container/40 transition-colors transition-all duration-200 active:scale-95" title="Logout" aria-label="Logout">
 <span className="material-symbols-outlined">logout</span>
 <span className="sr-only">Logout</span>
-</button>
+</LogoutButton>
 </div>
 </aside>
 

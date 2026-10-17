@@ -1,4 +1,4 @@
-import React from 'react';
+import LogoutButton from '../components/LogoutButton';
 
 export default function Knowledge_Base() {
   return (
@@ -50,10 +50,10 @@ export default function Knowledge_Base() {
 <span className="material-symbols-outlined text-[20px]">settings</span>
 <span className="absolute left-[72px] bg-inverse-surface text-inverse-on-surface text-[11px] font-medium px-2 py-1 rounded shadow-md opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">Settings</span>
 </a>
-<a className="flex items-center justify-center w-11 h-11 rounded-xl text-outline dark:text-outline-variant hover:text-error hover:bg-error-container/20 transition-all duration-200 active:scale-95 group relative" href="#" title="Logout">
+<LogoutButton className="flex items-center justify-center w-11 h-11 rounded-xl text-outline dark:text-outline-variant hover:text-error hover:bg-error-container/20 transition-all duration-200 active:scale-95 group relative" title="Logout" aria-label="Logout">
 <span className="material-symbols-outlined text-[20px]">logout</span>
 <span className="absolute left-[72px] bg-inverse-surface text-inverse-on-surface text-[11px] font-medium px-2 py-1 rounded shadow-md opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">Logout</span>
-</a>
+</LogoutButton>
 </div>
 </aside>
 

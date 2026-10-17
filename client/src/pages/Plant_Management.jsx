@@ -1,4 +1,4 @@
-import React from 'react';
+import LogoutButton from '../components/LogoutButton';
 
 export default function Plant_Management() {
   return (
@@ -41,9 +41,9 @@ export default function Plant_Management() {
 <button className="flex items-center justify-center w-11 h-11 rounded-xl text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-200 active:scale-95" title="Settings" type="button">
 <span className="material-symbols-outlined">settings</span>
 </button>
-<button className="flex items-center justify-center w-11 h-11 rounded-xl text-outline hover:text-error hover:bg-error-container/20 transition-colors duration-200 active:scale-95" title="Logout" type="button">
+<LogoutButton className="flex items-center justify-center w-11 h-11 rounded-xl text-outline hover:text-error hover:bg-error-container/20 transition-colors duration-200 active:scale-95" title="Logout" aria-label="Logout">
 <span className="material-symbols-outlined">logout</span>
-</button>
+</LogoutButton>
 </div>
 </aside>
 
