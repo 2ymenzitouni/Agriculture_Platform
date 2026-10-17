@@ -1,4 +1,4 @@
-import React from 'react';
+import LogoutButton from '../components/LogoutButton';
 
 export default function AI_Telemetry() {
   return (
@@ -259,9 +259,9 @@ export default function AI_Telemetry() {
 <button className="flex items-center justify-center w-11 h-11 rounded-xl text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors text-center" title="Settings">
 <span className="material-symbols-outlined text-[22px]">settings</span>
 </button>
-<button className="flex items-center justify-center w-11 h-11 rounded-xl text-outline hover:text-error hover:bg-surface-container-low transition-colors text-center" title="Logout">
+<LogoutButton className="flex items-center justify-center w-11 h-11 rounded-xl text-outline hover:text-error hover:bg-surface-container-low transition-colors text-center" title="Logout" aria-label="Logout">
 <span className="material-symbols-outlined text-[22px]">logout</span>
-</button>
+</LogoutButton>
 </div>
 </aside>
 

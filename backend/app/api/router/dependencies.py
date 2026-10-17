@@ -1,4 +1,5 @@
 from typing import Generator
+from uuid import UUID
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
@@ -25,7 +26,7 @@ def get_current_user(
     db: Session = Depends(get_db),
     token: str = Depends(oauth2_scheme),
 ) -> User:
-    """Decode JWT token and retrieve the corresponding active user."""
+    """Decode JWT token and retrieve the corresponding user."""
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -41,20 +42,15 @@ def get_current_user(
         user_id: str | None = payload.get("sub")
         token_type: str | None = payload.get("type")
 
-        if user_id is None or token_type != "access":
+        if not isinstance(user_id, str) or token_type != "access":
             raise credentials_exception
-    except JWTError:
+        user_uuid = UUID(user_id)
+    except (JWTError, ValueError):
         raise credentials_exception
 
-    user = db.query(User).filter(User.id == int(user_id)).first()
+    user = db.query(User).filter(User.id == user_uuid).first()
     if user is None:
         raise credentials_exception
-
-    if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Inactive user account",
-        )
 
     return user
 

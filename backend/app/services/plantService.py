@@ -11,16 +11,16 @@ class PlantService:
     def __init__(self, db: Session):
         self.db = db
 
-    def create(self, plant_in: PlantCreate) -> Plant:
+    def create(self, plant_in: PlantCreate, user_id: UUID) -> Plant:
         # Verify user exists
-        user = self.db.query(User).filter(User.id == plant_in.user_id).first()
+        user = self.db.query(User).filter(User.id == user_id).first()
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found with the provided user_id"
+                detail="User not found"
             )
 
-        db_plant = Plant(**plant_in.model_dump())
+        db_plant = Plant(**plant_in.model_dump(), user_id=user_id)
         self.db.add(db_plant)
         self.db.commit()
         self.db.refresh(db_plant)
@@ -29,14 +29,21 @@ class PlantService:
     def get_by_id(self, plant_id: UUID) -> Optional[Plant]:
         return self.db.query(Plant).filter(Plant.id == plant_id).first()
 
-    def get_by_user(self, user_id: UUID, skip: int = 0, limit: int = 100) -> List[Plant]:
-        return (
+    def get_by_user(
+        self,
+        user_id: UUID,
+        skip: int = 0,
+        limit: int | None = 100,
+    ) -> List[Plant]:
+        query = (
             self.db.query(Plant)
             .filter(Plant.user_id == user_id)
+            .order_by(Plant.created_at.desc())
             .offset(skip)
-            .limit(limit)
-            .all()
         )
+        if limit is not None:
+            query = query.limit(limit)
+        return query.all()
 
     def update(self, plant_id: UUID, plant_in: PlantUpdate) -> Plant:
         db_plant = self.get_by_id(plant_id)

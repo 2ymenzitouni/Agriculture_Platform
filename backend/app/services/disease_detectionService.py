@@ -1,7 +1,7 @@
 import os
 import shutil
 import uuid
-from decimal import Decimal
+from pathlib import Path
 from fastapi import UploadFile, HTTPException, status
 from sqlalchemy.orm import Session
 from ultralytics import YOLO
@@ -17,18 +17,33 @@ class DiseaseService:
     def __init__(self, db: Session):
         self.db = db
 
-    def process_and_detect(self, plant_id: uuid.UUID, file: UploadFile) -> DiseaseDetection:
+    def process_and_detect(
+        self,
+        plant_id: uuid.UUID,
+        file: UploadFile,
+        user_id: uuid.UUID,
+    ) -> DiseaseDetection:
         # 1. Verify plant exists and retrieve its crop type
-        plant = self.db.query(Plant).filter(Plant.id == plant_id).first()
+        plant = (
+            self.db.query(Plant)
+            .filter(Plant.id == plant_id, Plant.user_id == user_id)
+            .first()
+        )
         if not plant:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Plant not found with the provided plant_id"
+                detail="Plant not found for the authenticated user"
             )
 
         # 2. Save incoming uploaded image temporarily
-        file_extension = file.filename.split(".")[-1] if file.filename else "jpg"
-        unique_filename = f"{uuid.uuid4()}.{file_extension}"
+        file_extension = Path(file.filename or "").suffix.lower()
+        if file_extension not in {".jpg", ".jpeg", ".png", ".webp"}:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Unsupported image type. Upload a JPG, JPEG, PNG, or WEBP image.",
+            )
+
+        unique_filename = f"{uuid.uuid4()}{file_extension}"
         temp_input_path = os.path.join(UPLOAD_DIR, f"temp_{unique_filename}")
         
         with open(temp_input_path, "wb") as buffer:
@@ -42,6 +57,9 @@ class DiseaseService:
             detected_disease = "Healthy"
             confidence_score = 1.0
 
+            if not results:
+                raise RuntimeError("The detection model returned no results.")
+
             for r in results:
                 boxes = r.boxes
                 if boxes is not None and len(boxes) > 0:
@@ -54,7 +72,8 @@ class DiseaseService:
                 output_filepath = os.path.join(UPLOAD_DIR, output_filename)
                 
                 res_plotted = r.plot()
-                cv2.imwrite(output_filepath, res_plotted)
+                if not cv2.imwrite(output_filepath, res_plotted):
+                    raise RuntimeError("Unable to save the annotated image.")
 
             if os.path.exists(temp_input_path):
                 os.remove(temp_input_path)

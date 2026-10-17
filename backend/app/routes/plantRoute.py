@@ -3,16 +3,29 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, status, HTTPException
 from sqlalchemy.orm import Session
 
-from app.api.router.dependencies import get_db
+from app.api.router.dependencies import get_current_user, get_db
+from app.models.usersModel import User
 from app.schemas.plantSchema import PlantCreate, PlantUpdate, PlantResponse
 from app.services.plantService import PlantService
 
 router = APIRouter(prefix="/plants", tags=["Plants"])
 
 @router.post("/", response_model=PlantResponse, status_code=status.HTTP_201_CREATED)
-def create_plant(plant_in: PlantCreate, db: Session = Depends(get_db)):
+def create_plant(
+    plant_in: PlantCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     service = PlantService(db)
-    return service.create(plant_in)
+    return service.create(plant_in, current_user.id)
+
+@router.get("/mine", response_model=List[PlantResponse])
+def get_my_plants(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    service = PlantService(db)
+    return service.get_by_user(current_user.id, limit=None)
 
 @router.get("/user/{user_id}", response_model=List[PlantResponse])
 def get_user_plants(user_id: UUID, skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):

@@ -1,4 +1,4 @@
-import React from 'react';
+import LogoutButton from '../components/LogoutButton';
 
 export default function Weather_Dashboard() {
   return (
@@ -44,9 +44,9 @@ export default function Weather_Dashboard() {
 <button className="flex items-center justify-center w-10 h-10 rounded-xl text-outline dark:text-outline-variant hover:text-on-surface dark:hover:text-inverse-on-surface hover:bg-surface-container-low dark:hover:bg-surface-container transition-all duration-200 active:scale-95" title="Settings">
 <span className="material-symbols-outlined text-[22px]">settings</span>
 </button>
-<button className="flex items-center justify-center w-10 h-10 rounded-xl text-outline dark:text-outline-variant hover:text-error hover:bg-error-container/40 transition-all duration-200 active:scale-95" title="Logout">
+<LogoutButton className="flex items-center justify-center w-10 h-10 rounded-xl text-outline dark:text-outline-variant hover:text-error hover:bg-error-container/40 transition-all duration-200 active:scale-95" title="Logout" aria-label="Logout">
 <span className="material-symbols-outlined text-[22px]">power_settings_new</span>
-</button>
+</LogoutButton>
 </div>
 </aside>
 
