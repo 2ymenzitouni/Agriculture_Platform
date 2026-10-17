@@ -6,85 +6,81 @@ export default function Weather_Dashboard() {
       
 
 
+{/* 1. Fixed Sidebar */}
+      <aside className="fixed top-0 left-0 h-screen w-[68px] z-40 bg-surface-container-lowest border-r border-outline-variant/30 shadow-sm flex flex-col justify-between items-center py-5 margin-top: 68.8px;">
+        <div className="invisible flex flex-col items-center gap-1">
+          <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-on-primary shadow-sm">
+            <span className="material-symbols-outlined text-[24px]">sensors</span>
+          </div>
+          <span className="font-label-caps text-label-caps text-primary tracking-wider scale-90">AERO</span>
+        </div>
 
-<aside className="fixed top-0 left-0 h-screen w-[68px] z-40 bg-surface-container-lowest dark:bg-inverse-surface border-r border-outline-variant/30 dark:border-outline/20 shadow-sm dark:shadow-none flex flex-col justify-between items-center py-5">
+        <nav className="flex flex-col items-center gap-2 text-center">
+          <a className="flex items-center justify-center w-11 h-11 rounded-xl text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors text-center" href="#" title="Dashboard">
+            <span className="material-symbols-outlined text-[22px]">dashboard</span>
+          </a>
 
-<div className="flex flex-col items-center gap-1 w-full">
-<div className="w-11 h-11 rounded-xl bg-surface-container-low flex items-center justify-center text-primary transition-all duration-200 hover:scale-105 shadow-sm">
-<span className="material-symbols-outlined text-primary text-[28px]">cloud</span>
-</div>
-</div>
+          <a className="flex items-center justify-center w-11 h-11 rounded-xl text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors text-center" href="#" title="Media Analysis">
+            <span className="material-symbols-outlined text-[22px]">perm_media</span>
+          </a>
+          <a className="flex items-center justify-center w-11 h-11 rounded-xl text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors text-center" href="#" title="File Ingestion">
+            <span className="material-symbols-outlined text-[22px]">upload_file</span>
+          </a>
+          <a className="flex items-center justify-center w-11 h-11 rounded-xl text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors text-center" href="#" title="Plant Registry &amp; Crop Systems">
+            <span className="material-symbols-outlined text-[22px]">potted_plant</span>
+          </a>
 
+          <a className="flex items-center justify-center w-11 h-11 rounded-xl bg-surface-container text-primary transition-colors text-center" href="#" title="AI Assistant">
+            <span className="material-symbols-outlined text-[22px]">smart_toy</span>
+          </a>
 
-<nav className="flex flex-col items-center gap-3.5 my-auto w-full">
-<button className="flex items-center justify-center w-11 h-11 rounded-xl bg-surface-container dark:bg-primary/20 text-primary dark:text-inverse-primary transition-colors transition-all duration-200 active:scale-95 group" title="Dashboard">
-<span className="material-symbols-outlined text-[24px]">dashboard</span>
-</button>
+          <a className="flex items-center justify-center w-11 h-11 rounded-xl text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors text-center" href="#" title="Telemetry Simulator">
+            <span className="material-symbols-outlined text-[22px]">tune</span>
+          </a>
 
-<button className="flex items-center justify-center w-11 h-11 rounded-xl text-outline dark:text-outline-variant hover:text-on-surface dark:hover:text-inverse-on-surface hover:bg-surface-container-low dark:hover:bg-surface-container transition-colors transition-all duration-200 active:scale-95" title="Media Analysis">
-<span className="material-symbols-outlined text-[24px]">perm_media</span>
-</button><button className="flex items-center justify-center w-11 h-11 rounded-xl text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-200 active:scale-95" title="File Ingestion"><span className="material-symbols-outlined text-[24px]">upload_file</span></button><button className="flex items-center justify-center w-11 h-11 rounded-xl text-outline dark:text-outline-variant hover:text-on-surface dark:hover:text-inverse-on-surface hover:bg-surface-container-low dark:hover:bg-surface-container transition-colors transition-all duration-200 active:scale-95" title="Plant Registry &amp; Crop Systems">
-<span className="material-symbols-outlined text-[24px]">potted_plant</span>
-</button>
+          <a className="flex items-center justify-center w-11 h-11 rounded-xl text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors text-center" href="#" title="Devices">
+            <span className="material-symbols-outlined text-[22px]">sensors</span>
+          </a>
+        </nav>
 
-<button className="flex items-center justify-center w-11 h-11 rounded-xl text-outline dark:text-outline-variant hover:text-on-surface dark:hover:text-inverse-on-surface hover:bg-surface-container-low dark:hover:bg-surface-container transition-colors transition-all duration-200 active:scale-95" title="AI Assistant">
-<span className="material-symbols-outlined text-[24px]">smart_toy</span>
-</button>
+        <div className="flex flex-col items-center gap-2 text-center">
+          <button className="flex items-center justify-center w-11 h-11 rounded-xl text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors text-center" title="Settings">
+            <span className="material-symbols-outlined text-[22px]">settings</span>
+          </button>
+          <LogoutButton className="flex items-center justify-center w-11 h-11 rounded-xl text-outline hover:text-error hover:bg-surface-container-low transition-colors text-center" title="Logout" aria-label="Logout">
+            <span className="material-symbols-outlined text-[22px]">logout</span>
+          </LogoutButton>
+        </div>
+      </aside>
 
-<button className="flex items-center justify-center w-11 h-11 rounded-xl text-outline dark:text-outline-variant hover:text-on-surface dark:hover:text-inverse-on-surface hover:bg-surface-container-low dark:hover:bg-surface-container transition-colors transition-all duration-200 active:scale-95" title="Telemetry Simulator">
-<span className="material-symbols-outlined text-[24px]">tune</span>
-</button>
-
-<button className="flex items-center justify-center w-11 h-11 rounded-xl text-outline dark:text-outline-variant hover:text-on-surface dark:hover:text-inverse-on-surface hover:bg-surface-container-low dark:hover:bg-surface-container transition-colors transition-all duration-200 active:scale-95" title="Devices">
-<span className="material-symbols-outlined text-[24px]">sensors</span>
-</button>
-</nav>
-
-<div className="flex flex-col items-center gap-2 pt-2 border-t border-outline-variant/30 w-full">
-<button className="flex items-center justify-center w-10 h-10 rounded-xl text-outline dark:text-outline-variant hover:text-on-surface dark:hover:text-inverse-on-surface hover:bg-surface-container-low dark:hover:bg-surface-container transition-all duration-200 active:scale-95" title="Settings">
-<span className="material-symbols-outlined text-[22px]">settings</span>
-</button>
-<LogoutButton className="flex items-center justify-center w-10 h-10 rounded-xl text-outline dark:text-outline-variant hover:text-error hover:bg-error-container/40 transition-all duration-200 active:scale-95" title="Logout" aria-label="Logout">
-<span className="material-symbols-outlined text-[22px]">power_settings_new</span>
-</LogoutButton>
-</div>
-</aside>
-
-
-
-<header className="sticky top-0 right-0 z-30 ml-[68px] w-[calc(100%-68px)] bg-surface-container-lowest/90 dark:bg-inverse-surface/90 backdrop-blur-md border-b border-outline-variant/30 dark:border-outline/20 shadow-sm dark:shadow-none flex justify-between items-center px-6 py-3">
-<div className="flex items-center gap-2.5 flex-shrink-0"><div className="flex flex-col leading-none"><span className="text-headline-md font-headline-md font-bold text-on-surface dark:text-inverse-on-surface leading-tight">AeroSense</span><span className="text-xs text-on-surface-variant tracking-normal leading-tight font-bold">Telemetry</span></div></div>
-
-
-<div className="flex-1 flex justify-center px-6">
-  <div className="relative w-full max-w-md hidden sm:block">
-    <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-outline text-[18px]">search</span>
-    <input className="w-full bg-surface-container-low/60 border border-outline-variant/40 rounded-lg pl-8 pr-3 py-1.5 text-xs text-on-surface focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all" placeholder="Search sensors, station..." type="text" />
-  </div>
-</div>
-
-
-<div className="flex items-center gap-5 flex-shrink-0">
-  
-  <div className="flex items-center gap-3">
-    <button className="p-2 text-outline hover:text-primary hover:bg-surface-container-low rounded-lg transition-colors relative" title="Notifications">
-      <span className="material-symbols-outlined text-[20px]">notifications</span>
-      <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-primary ring-2 ring-surface-container-lowest"></span>
-    </button>
-    
-    <button className="xl:flex items-center gap-1 bg-surface-container-lowest border border-outline-variant/60 text-on-surface-variant text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-surface-container-low transition-all flex">
-      <span className="material-symbols-outlined text-[16px]">file_download</span>
-      Export Data
-    </button>
-    
-    <div className="flex items-center pl-2 border-l border-outline-variant/40">
-      <div className="w-8 h-8 rounded-full bg-surface-variant flex items-center justify-center font-bold text-xs text-primary border border-primary/20" title="Administrator profile photo">
-        AD
-      </div>
-    </div>
-  </div>
-</div></header>
-
+      {/* 2. Fixed Top Header Navbar */}
+      {/* <header className="fixed top-0 right-0 z-30 ml-[68px] w-[calc(100%-68px)] h-[61px] bg-surface-container-lowest/90 backdrop-blur-md border-b border-outline-variant/30 shadow-sm flex justify-between items-center px-6">
+        <div className="flex items-center gap-3 shrink-0">
+          <div className="flex flex-col leading-tight">
+            <span className="font-headline-md text-headline-md text-on-surface font-bold">AeroSense</span>
+            <span className="font-label-caps text-label-caps text-on-surface-variant tracking-wider font-bold">Telemetry</span>
+          </div>
+          <span className="bg-primary/10 text-primary text-label-caps font-label-caps px-2 py-0.5 rounded-full border border-primary/20">v2.4</span>
+        </div>
+        <div className="flex-1 flex justify-center px-6">
+          <div className="relative w-full max-w-md">
+            <span className="material-symbols-outlined absolute left-3 top-2.5 text-outline text-[18px]">search</span>
+            <input className="w-full bg-surface-container-low border border-outline-variant/40 rounded-lg pl-9 pr-3 py-1.5 text-label-md font-label-md text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary" placeholder="Search sensors, logs, or tags..." type="text" />
+          </div>
+        </div>
+        <div className="flex items-center gap-3 shrink-0">
+          <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-outline-variant/50 text-label-md font-label-md font-medium text-on-surface hover:bg-surface-container-low transition-colors">
+            <span className="material-symbols-outlined text-[18px]">file_download</span>Export Data
+          </button>
+          <button className="p-2 rounded-lg text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors relative" title="Notifications">
+            <span className="material-symbols-outlined text-[20px]">notifications</span>
+            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-primary ring-2 ring-surface-container-lowest"></span>
+          </button>
+          <div className="flex items-center gap-2 pl-1">
+            <div className="w-8 h-8 rounded-full bg-primary-container text-on-primary font-bold flex items-center justify-center text-label-sm">AD</div>
+          </div>
+        </div>
+      </header> */}
 
 
 <main className="ml-[68px] flex-1 p-4 md:p-6 lg:p-7 max-w-[1700px] w-[calc(100%-68px)]">

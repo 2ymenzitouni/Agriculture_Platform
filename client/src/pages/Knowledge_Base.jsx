@@ -7,7 +7,7 @@ export default function Knowledge_Base() {
 
 <aside className="fixed top-0 left-0 h-screen w-[68px] z-40 bg-surface-container-lowest dark:bg-inverse-surface border-r border-outline-variant/30 dark:border-outline/20 shadow-sm dark:shadow-none flex flex-col justify-between items-center py-5">
 
-<div className="flex flex-col items-center gap-1">
+<div className="invisible flex flex-col items-center gap-1">
 <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-on-primary shadow-sm">
 <span className="material-symbols-outlined text-[24px]">sensors</span>
 </div>
@@ -59,7 +59,7 @@ export default function Knowledge_Base() {
 
 <div className="flex-1 flex flex-col min-h-screen pl-[68px]">
 
-<header className="sticky top-0 z-30 w-full bg-surface-container-lowest/90 dark:bg-inverse-surface/90 backdrop-blur-md border-b border-outline-variant/30 dark:border-outline/20 shadow-sm dark:shadow-none flex justify-between items-center px-6 py-3.5">
+{/* <header className="sticky top-0 z-30 w-full bg-surface-container-lowest/90 dark:bg-inverse-surface/90 backdrop-blur-md border-b border-outline-variant/30 dark:border-outline/20 shadow-sm dark:shadow-none flex justify-between items-center px-6 py-3.5">
 
 <div className="flex items-center gap-6 flex-1 max-w-2xl">
 <div className="flex items-center gap-2">
@@ -102,7 +102,7 @@ export default function Knowledge_Base() {
           </div>
 </div>
 </div>
-</header>
+</header> */}
 
 <main className="p-6 lg:p-8 space-y-6 flex-1 max-w-[1680px] w-full mx-auto">
 
