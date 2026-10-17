@@ -1,4 +1,4 @@
-import React from 'react';
+import LogoutButton from '../components/LogoutButton';
 
 export default function IoT_Simulator() {
   return (
@@ -44,9 +44,9 @@ export default function IoT_Simulator() {
 <button className="flex items-center justify-center w-11 h-11 rounded-xl text-outline hover:text-on-surface hover:bg-surface-container-low transition-all duration-200 active:scale-95" title="Settings">
 <span className="material-symbols-outlined" data-icon="settings">settings</span>
 </button>
-<button className="flex items-center justify-center w-11 h-11 rounded-xl text-outline hover:text-error hover:bg-surface-container-low transition-all duration-200 active:scale-95" title="Logout">
+<LogoutButton className="flex items-center justify-center w-11 h-11 rounded-xl text-outline hover:text-error hover:bg-surface-container-low transition-all duration-200 active:scale-95" title="Logout" aria-label="Logout">
 <span className="material-symbols-outlined" data-icon="logout">logout</span>
-</button>
+</LogoutButton>
 </div>
 </aside>
 
