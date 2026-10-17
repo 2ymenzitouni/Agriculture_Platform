@@ -1,305 +1,340 @@
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import LogoutButton from '../components/LogoutButton';
+import API from '../services/app';
+
+const getErrorMessage = (error, fallback) => {
+  const detail = error.response?.data?.detail;
+  return typeof detail === 'string' ? detail : fallback;
+};
+
+const getImageUrl = (imagePath) => (
+  new URL(imagePath, new URL(API.defaults.baseURL, window.location.origin)).toString()
+);
 
 export default function Image_Upload() {
+  const [plants, setPlants] = useState([]);
+  const [plantId, setPlantId] = useState('');
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [detection, setDetection] = useState(null);
+  const [loadingPlants, setLoadingPlants] = useState(true);
+  const [detecting, setDetecting] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let isMounted = true;
+
+    API.get('/plants/mine')
+      .then(({ data }) => {
+        if (isMounted) {
+          setPlants(data);
+          setPlantId(data[0]?.id ?? '');
+        }
+      })
+      .catch((requestError) => {
+        if (isMounted) setError(getErrorMessage(requestError, 'Unable to load your plants.'));
+      })
+      .finally(() => {
+        if (isMounted) setLoadingPlants(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const handleFileChange = (event) => {
+    const [file] = event.target.files ?? [];
+    setError('');
+    setDetection(null);
+
+    if (!file) {
+      setSelectedFile(null);
+      return;
+    }
+
+    const supportedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!supportedTypes.includes(file.type)) {
+      setSelectedFile(null);
+      setError('Choose a JPG, PNG, or WEBP image.');
+      event.target.value = '';
+      return;
+    }
+
+    setSelectedFile(file);
+  };
+
+  const handleDetection = async () => {
+    if (!plantId) {
+      setError('Add a plant before running detection.');
+      return;
+    }
+    if (!selectedFile) {
+      setError('Choose an image before running detection.');
+      return;
+    }
+
+    setError('');
+    setDetecting(true);
+
+    const formData = new FormData();
+    formData.append('plant_id', plantId);
+    formData.append('file', selectedFile);
+
+    try {
+      const { data } = await API.post('/diseases/detect', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setDetection(data);
+    } catch (requestError) {
+      setError(getErrorMessage(requestError, 'Image detection failed. Please try again.'));
+    } finally {
+      setDetecting(false);
+    }
+  };
+
+  const selectedPlant = plants.find((plant) => plant.id === plantId);
+
   return (
     <div className="w-full">
-      
-
-
-
-<aside aria-label="Main Navigation" className="fixed top-0 left-0 h-screen w-[68px] z-40 bg-surface-container-lowest dark:bg-inverse-surface border-r border-outline-variant/30 dark:border-outline/20 shadow-sm dark:shadow-none fixed top-0 left-0 h-full w-[68px] flex flex-col justify-between items-center py-5">
-
-<div className="flex flex-col items-center gap-1">
-<div className="w-10 h-10 rounded-xl bg-primary-container text-on-primary flex items-center justify-center shadow-sm" title="AeroSense IoT">
-<span className="material-symbols-outlined text-on-primary" >sensors</span>
-</div>
-<span className="font-label-caps text-label-caps text-primary font-bold tracking-tight text-[9px] uppercase mt-1">v2.4</span>
-</div>
-
-<nav className="flex flex-col items-center gap-3">
-
-<a className="flex items-center justify-center w-11 h-11 rounded-xl text-outline dark:text-outline-variant hover:text-on-surface dark:hover:text-inverse-on-surface hover:bg-surface-container-low dark:hover:bg-surface-container transition-colors transition-all duration-200 active:scale-95 group relative" href="#" title="Dashboard">
-<span className="material-symbols-outlined">dashboard</span>
-<span className="sr-only">Dashboard</span>
-</a>
-
-<a aria-current="page" className="flex items-center justify-center w-11 h-11 rounded-xl bg-surface-container dark:bg-primary/20 text-primary dark:text-inverse-primary transition-colors transition-all duration-200 active:scale-95 group relative ring-1 ring-primary/20" href="#" title="Media Analysis">
-<span className="material-symbols-outlined" >perm_media</span>
-<span className="sr-only">Media Analysis</span>
-</a>
-
-<a className="flex items-center justify-center w-11 h-11 rounded-xl text-outline dark:text-outline-variant hover:text-on-surface dark:hover:text-inverse-on-surface hover:bg-surface-container-low dark:hover:bg-surface-container transition-colors transition-all duration-200 active:scale-95 group relative" href="#" title="File Ingestion"><span className="material-symbols-outlined">upload_file</span><span className="sr-only">File Ingestion</span></a><a className="flex items-center justify-center w-11 h-11 rounded-xl text-outline dark:text-outline-variant hover:text-on-surface dark:hover:text-inverse-on-surface hover:bg-surface-container-low dark:hover:bg-surface-container transition-colors transition-all duration-200 active:scale-95 group relative" href="#" title="Plant Registry &amp; Crop Systems"><span className="material-symbols-outlined">potted_plant</span><span className="sr-only">Plant Registry &amp; Crop Systems</span></a><a className="flex items-center justify-center w-11 h-11 rounded-xl text-outline dark:text-outline-variant hover:text-on-surface dark:hover:text-inverse-on-surface hover:bg-surface-container-low dark:hover:bg-surface-container transition-colors transition-all duration-200 active:scale-95 group relative" href="#" title="AI Assistant">
-<span className="material-symbols-outlined">smart_toy</span>
-<span className="sr-only">AI Assistant</span>
-</a>
-
-<a className="flex items-center justify-center w-11 h-11 rounded-xl text-outline dark:text-outline-variant hover:text-on-surface dark:hover:text-inverse-on-surface hover:bg-surface-container-low dark:hover:bg-surface-container transition-colors transition-all duration-200 active:scale-95 group relative" href="#" title="Telemetry Simulator">
-<span className="material-symbols-outlined">tune</span>
-<span className="sr-only">Telemetry Simulator</span>
-</a>
-
-<a className="flex items-center justify-center w-11 h-11 rounded-xl text-outline dark:text-outline-variant hover:text-on-surface dark:hover:text-inverse-on-surface hover:bg-surface-container-low dark:hover:bg-surface-container transition-colors transition-all duration-200 active:scale-95 group relative" href="#" title="Devices">
-<span className="material-symbols-outlined">sensors</span>
-<span className="sr-only">Devices</span>
-</a>
-</nav>
-
-<div className="flex flex-col items-center gap-2 pt-2 border-t border-outline-variant/30 w-full px-2">
-<button className="flex items-center justify-center w-11 h-11 rounded-xl text-outline dark:text-outline-variant hover:text-on-surface dark:hover:text-inverse-on-surface hover:bg-surface-container-low dark:hover:bg-surface-container transition-colors transition-all duration-200 active:scale-95" title="Settings" type="button">
-<span className="material-symbols-outlined">settings</span>
-<span className="sr-only">Settings</span>
-</button>
-<LogoutButton className="flex items-center justify-center w-11 h-11 rounded-xl text-outline dark:text-outline-variant hover:text-error hover:bg-error-container/40 transition-colors transition-all duration-200 active:scale-95" title="Logout" aria-label="Logout">
-<span className="material-symbols-outlined">logout</span>
-<span className="sr-only">Logout</span>
-</LogoutButton>
-</div>
-</aside>
-
-
-
-<header className="sticky top-0 right-0 z-30 ml-[68px] w-[calc(100%-68px)] bg-surface-container-lowest/90 dark:bg-inverse-surface/90 backdrop-blur-md border-b border-outline-variant/30 dark:border-outline/20 shadow-sm dark:shadow-none"><div className="flex items-center justify-between px-6 py-3.5 w-full gap-4"><div className="flex items-center gap-2 flex-shrink-0"><span className="font-headline-md text-headline-md font-bold text-on-surface dark:text-inverse-on-surface tracking-tight"><span className="block leading-none">AeroSense</span><span className="block text-xs text-on-surface-variant tracking-normal leading-tight mt-0.5 font-bold">Telemetry</span></span></div><div className="flex-1 flex justify-center"><div className="relative w-full max-w-md"><span className="material-symbols-outlined absolute left-3 top-2.5 text-outline pointer-events-none text-base">search</span><input className="w-full bg-surface-container-low text-on-surface placeholder:text-outline pl-9 pr-3 py-1.5 rounded-lg border border-outline-variant/40 text-body-md font-body-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all" placeholder="Search captures, nodes..." type="text" /></div></div><div className="flex items-center gap-3 flex-shrink-0"><button className="p-2 text-outline hover:text-on-surface hover:bg-surface-container-low rounded-lg transition-colors relative" title="Notifications" type="button"><span className="material-symbols-outlined">notifications</span><span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-error"></span></button><button className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-container-lowest border border-outline-variant text-on-surface font-label-md text-label-md hover:bg-surface-container-low transition-colors shadow-xs" type="button"><span className="material-symbols-outlined text-sm">download</span>Export Data</button><div className="flex items-center pl-1"><div className="w-8 h-8 rounded-full bg-secondary-fixed text-on-secondary-fixed flex items-center justify-center font-bold text-xs ring-2 ring-primary/20">AD</div></div></div></div></header>
-
-
-
-<main className="ml-[68px] flex-1 flex flex-col xl:flex-row min-h-[calc(100vh-62px)] bg-surface">
-
-<section className="flex-1 p-6 lg:p-8 flex flex-col gap-6 max-w-[1540px]">
-
-<div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-outline-variant/30">
-<div>
-<div className="flex items-center gap-3">
-<h1 className="font-headline-lg text-headline-lg text-on-surface tracking-tight">Image Upload &amp; Environmental Analysis</h1>
-<span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-tertiary-fixed text-on-tertiary-fixed">
-<span className="w-1.5 h-1.5 rounded-full bg-tertiary animate-pulse"></span>
-              Live Pipeline Active
-            </span>
-</div>
-<p className="text-on-surface-variant font-body-md text-body-md mt-1">
-            Feed multi-spectral drone imagery, IoT field captures, and ground soil frames into the AeroSense neural inference engine.
-          </p>
-</div>
-
-
-</div>
-
-
-
-<div className="bg-surface-container-lowest rounded-xl border-2 border-dashed border-outline-variant/60 hover:border-primary transition-all p-5 card-ambient-shadow group relative overflow-hidden">
-  <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
-  <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-4">
-    <div className="flex items-center gap-4 text-left">
-      <div className="w-12 h-12 rounded-xl bg-surface-container flex items-center justify-center text-primary flex-shrink-0 group-hover:scale-105 transition-transform ring-1 ring-primary/20">
-        <span className="material-symbols-outlined text-2xl" >cloud_upload</span>
-      </div>
-      <div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <h2 className="font-headline-md text-headline-md text-on-surface text-base font-bold">Drag and drop environmental captures here</h2>
-          <span className="px-2 py-0.5 rounded font-label-caps text-[10px] bg-secondary-fixed text-on-secondary-fixed font-bold uppercase">Multi-Spectral Ready</span>
+      <aside aria-label="Main Navigation" className="fixed left-0 top-0 z-40 flex h-screen w-[68px] flex-col items-center justify-between border-r border-outline-variant/30 bg-surface-container-lowest py-5 dark:bg-inverse-surface">
+        <div className="flex flex-col items-center gap-1">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-container text-on-primary shadow-sm" title="AeroSense IoT">
+            <span className="material-symbols-outlined">sensors</span>
+          </div>
+          <span className="mt-1 text-[9px] font-bold uppercase tracking-tight text-primary">v2.4</span>
         </div>
-        <p className="text-on-surface-variant font-body-md text-xs mt-0.5">
-          Supported: <span className="font-semibold text-on-surface">TIFF, PNG, RAW</span> • Up to 50 MB per capture • Geotagged coordinate ingestion active
-        </p>
-      </div>
-    </div>
-    <div className="flex items-center gap-2.5 flex-shrink-0 w-full sm:w-auto justify-end">
-      <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-on-primary font-label-md text-xs font-bold hover:bg-primary-container transition-all shadow-sm active:scale-95">
-        <span className="material-symbols-outlined text-sm">folder_open</span>
-        <span className="">Browse Files</span>
-        <input accept="image/*,.tiff,.raw" className="hidden" multiple="" type="file" />
-      </label>
-      <button className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-surface-container-lowest border border-outline-variant/60 text-on-surface font-label-md text-xs font-semibold hover:bg-surface-container-low transition-colors active:scale-95" type="button">
-        <span className="material-symbols-outlined text-secondary text-sm">videocam</span>
-        <span className="">Direct Trigger</span>
-      </button>
-    </div>
-  </div>
-</div><div className="bg-surface-container-lowest rounded-xl border border-outline-variant/40 p-6 card-ambient-shadow flex flex-col gap-5">
-  
-  <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-outline-variant/30">
-    <div className="flex flex-wrap items-center gap-2.5">
-      <h2 className="font-headline-md text-headline-md text-on-surface">Plant Detection Results &amp; Annotations</h2>
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-tertiary-fixed text-on-tertiary-fixed">
-        <span className="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
-        Inference Complete - 3 Annotations Found
-      </span>
-    </div>
-    
-    <div className="flex items-center gap-2 flex-wrap">
-      <span className="px-2.5 py-1 rounded-lg text-xs font-label-md bg-surface-container-low text-on-surface-variant border border-outline-variant/30 flex items-center gap-1">
-        <span className="material-symbols-outlined text-xs text-primary">verified</span> Confidence: &gt;85%
-      </span>
-      <button type="button" className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-label-md bg-surface-container text-primary font-bold hover:bg-surface-container-high transition-colors">
-        <span className="material-symbols-outlined text-xs">visibility</span> Show Labels
-      </button>
-      <button type="button" className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-label-md bg-surface-container-low text-on-surface-variant border border-outline-variant/30 hover:bg-surface-container transition-colors">
-        <span className="material-symbols-outlined text-xs">layers</span> Heatmap Overlay
-      </button>
-    </div>
-  </div>
+        <nav aria-label="Main Navigation" className="flex flex-col items-center gap-3">
+          <Link className="flex h-11 w-11 items-center justify-center rounded-xl text-outline transition-colors hover:bg-surface-container-low hover:text-on-surface" to="/" title="Dashboard">
+            <span className="material-symbols-outlined">dashboard</span>
+          </Link>
+          <Link aria-current="page" className="flex h-11 w-11 items-center justify-center rounded-xl bg-surface-container text-primary ring-1 ring-primary/20" to="/image-analysis" title="Media Analysis">
+            <span className="material-symbols-outlined">perm_media</span>
+          </Link>
+          <Link className="flex h-11 w-11 items-center justify-center rounded-xl text-outline transition-colors hover:bg-surface-container-low hover:text-on-surface" to="/knowledge-base" title="File Ingestion">
+            <span className="material-symbols-outlined">upload_file</span>
+          </Link>
+          <Link className="flex h-11 w-11 items-center justify-center rounded-xl text-outline transition-colors hover:bg-surface-container-low hover:text-on-surface" to="/plants" title="Plant Registry">
+            <span className="material-symbols-outlined">potted_plant</span>
+          </Link>
+          <Link className="flex h-11 w-11 items-center justify-center rounded-xl text-outline transition-colors hover:bg-surface-container-low hover:text-on-surface" to="/ai-chat" title="AI Assistant">
+            <span className="material-symbols-outlined">smart_toy</span>
+          </Link>
+          <Link className="flex h-11 w-11 items-center justify-center rounded-xl text-outline transition-colors hover:bg-surface-container-low hover:text-on-surface" to="/iot-simulator" title="Telemetry Simulator">
+            <span className="material-symbols-outlined">tune</span>
+          </Link>
+        </nav>
+        <div className="flex w-full flex-col items-center gap-2 border-t border-outline-variant/30 px-2 pt-2">
+          <LogoutButton className="flex h-11 w-11 items-center justify-center rounded-xl text-outline transition-colors hover:bg-error-container/40 hover:text-error" title="Logout" aria-label="Logout">
+            <span className="material-symbols-outlined">logout</span>
+          </LogoutButton>
+        </div>
+      </aside>
 
-  
-  <div className="relative rounded-xl overflow-hidden bg-surface-dim border border-outline-variant/40 group max-h-[460px] flex items-center justify-center">
-    <img className="w-full h-[440px] object-cover block" data-alt="Macro close-up inspection of plant canopy leaf with leaf spot disease and chlorosis pattern" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBZrXjD_LDeOMatVgfxkHNI34HHPc3HHLfiJ_nFSOM6rNH6NFZI0PjsIYsXpYMcKb1vdJWf5JuJVhSlV8r6r3R2LAHBwilwDwUb0kWDDqItruSkd2j_jZxqwBbgoUNuIUCjDRrg0yFEKasTg1u0EER9Ce9ww9DaLpCeb1SLk3Fz5Yt8sSOMhvwj7RTv6pCT0MCwXVbIXJNFLaZE1f4l5o32_9PC2E3XdfPu3zpXThTDRmMAvwO_k-4lxg" />
-
-    
-    <div className="absolute top-[28%] left-[22%] w-[26%] h-[34%] border-2 border-error rounded bg-error/10 pointer-events-auto transition-transform hover:scale-[1.02]">
-      <div className="absolute -top-6 left-0 bg-error text-on-error px-2 py-0.5 rounded text-[10px] font-bold font-mono tracking-tight flex items-center gap-1 shadow-sm whitespace-nowrap">
-        <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
-        Cercospora Leaf Spot (96.4%)
-      </div>
-      <span className="absolute bottom-1 right-1 text-[9px] font-mono text-white/90 bg-black/60 px-1 rounded pointer-events-none">[x:220, y:310]</span>
-    </div>
-
-    
-    <div className="absolute top-[18%] left-[56%] w-[24%] h-[28%] border-2 border-primary-container rounded bg-primary-container/10 pointer-events-auto transition-transform hover:scale-[1.02]">
-      <div className="absolute -top-6 left-0 bg-primary-container text-on-primary px-2 py-0.5 rounded text-[10px] font-bold font-mono tracking-tight flex items-center gap-1 shadow-sm whitespace-nowrap">
-        <span className="w-1.5 h-1.5 rounded-full bg-white"></span>
-        Chlorosis Stage 1 (91.2%)
-      </div>
-      <span className="absolute bottom-1 right-1 text-[9px] font-mono text-white/90 bg-black/60 px-1 rounded pointer-events-none">[x:560, y:180]</span>
-    </div>
-
-    
-    <div className="absolute bottom-[16%] left-[48%] w-[22%] h-[26%] border-2 border-secondary rounded bg-secondary/10 pointer-events-auto transition-transform hover:scale-[1.02]">
-      <div className="absolute -top-6 left-0 bg-secondary text-on-secondary px-2 py-0.5 rounded text-[10px] font-bold font-mono tracking-tight flex items-center gap-1 shadow-sm whitespace-nowrap">
-        <span className="w-1.5 h-1.5 rounded-full bg-white"></span>
-        Stomata Constriction (88.5%)
-      </div>
-      <span className="absolute bottom-1 right-1 text-[9px] font-mono text-white/90 bg-black/60 px-1 rounded pointer-events-none">[x:480, y:520]</span>
-    </div>
-  </div>
-
-  
-  <div className="p-4 rounded-xl bg-surface-container-low border border-outline-variant/30 flex flex-col md:flex-row md:items-center justify-between gap-4">
-    <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-3">
-      
-      <div className="flex flex-col gap-1.5 p-2 rounded-lg bg-surface-container-lowest border border-outline-variant/20">
-        <div className="flex items-center justify-between text-xs">
-          <span className="flex items-center gap-1.5 font-semibold text-on-surface">
-            <span className="w-2.5 h-2.5 rounded-full bg-error"></span> Cercospora Spot
+      <header className="sticky top-0 z-30 ml-[68px] flex w-[calc(100%-68px)] items-center justify-between border-b border-outline-variant/30 bg-surface-container-lowest/90 px-6 py-3.5 shadow-sm backdrop-blur-md dark:bg-inverse-surface/90">
+        <div className="flex flex-col font-bold leading-tight tracking-tight text-on-surface dark:text-inverse-on-surface">
+          <span>AeroSense</span>
+          <span className="text-xs text-on-surface-variant">Telemetry</span>
+        </div>
+        <div className="hidden flex-1 justify-center px-6 md:flex">
+          <span className="rounded-full bg-tertiary-fixed px-3 py-1 text-xs font-semibold text-on-tertiary-fixed">
+            {detecting ? 'Model inference running' : 'Disease detection'}
           </span>
-          <span className="font-mono font-bold text-error">96.4%</span>
         </div>
-        <div className="w-full h-1.5 rounded-full bg-surface-container-high overflow-hidden">
-          <div className="h-full bg-error rounded-full" ></div>
+        <div className="flex items-center gap-2 text-sm font-semibold text-on-surface-variant">
+          <span className="material-symbols-outlined text-primary">analytics</span>
+          Vision Analysis
         </div>
-      </div>
-      
-      <div className="flex flex-col gap-1.5 p-2 rounded-lg bg-surface-container-lowest border border-outline-variant/20">
-        <div className="flex items-center justify-between text-xs">
-          <span className="flex items-center gap-1.5 font-semibold text-on-surface">
-            <span className="w-2.5 h-2.5 rounded-full bg-primary-container"></span> Chlorosis Stage 1
-          </span>
-          <span className="font-mono font-bold text-primary">91.2%</span>
-        </div>
-        <div className="w-full h-1.5 rounded-full bg-surface-container-high overflow-hidden">
-          <div className="h-full bg-primary-container rounded-full" ></div>
-        </div>
-      </div>
-      
-      <div className="flex flex-col gap-1.5 p-2 rounded-lg bg-surface-container-lowest border border-outline-variant/20">
-        <div className="flex items-center justify-between text-xs">
-          <span className="flex items-center gap-1.5 font-semibold text-on-surface">
-            <span className="w-2.5 h-2.5 rounded-full bg-secondary"></span> Stomata Constriction
-          </span>
-          <span className="font-mono font-bold text-secondary">88.5%</span>
-        </div>
-        <div className="w-full h-1.5 rounded-full bg-surface-container-high overflow-hidden">
-          <div className="h-full bg-secondary rounded-full" ></div>
-        </div>
-      </div>
-    </div>
+      </header>
 
-    
-    
-  </div>
-</div>
+      <main className="ml-[68px] flex min-h-[calc(100vh-62px)] flex-col bg-surface xl:flex-row">
+        <section className="flex max-w-[1540px] flex-1 flex-col gap-6 p-6 lg:p-8">
+          <div className="flex flex-col justify-between gap-4 border-b border-outline-variant/30 pb-4 md:flex-row md:items-center">
+            <div>
+              <div className="flex flex-wrap items-center gap-3">
+                <h1 className="text-2xl font-bold tracking-tight text-on-surface">Image Upload &amp; Environmental Analysis</h1>
+                <span className="inline-flex items-center gap-1 rounded-full bg-tertiary-fixed px-2.5 py-1 text-xs font-semibold text-on-tertiary-fixed">
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-tertiary"></span>
+                  {detecting ? 'Inference in progress' : 'Pipeline Ready'}
+                </span>
+              </div>
+              <p className="mt-1 text-sm text-on-surface-variant">
+                Upload a plant image, run the model, and review the saved detection with its annotated bounding boxes.
+              </p>
+            </div>
+          </div>
 
+          {error && <p className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700" role="alert">{error}</p>}
 
-</section>
+          {!loadingPlants && plants.length === 0 && (
+            <div className="rounded-xl border border-outline-variant/40 bg-surface-container-lowest p-4 text-sm text-on-surface-variant">
+              Register a plant before running detection. <Link className="font-semibold text-primary underline" to="/plants">Open Plant Registry</Link>
+            </div>
+          )}
 
-<aside aria-label="Metadata Inspection Panel" className="w-full xl:w-[380px] bg-surface-container-lowest border-t xl:border-t-0 xl:border-l border-outline-variant/40 p-6 flex flex-col justify-between gap-6 card-ambient-shadow">
-<div className="flex flex-col gap-6">
+          <div className="group relative overflow-hidden rounded-xl border-2 border-dashed border-outline-variant/60 bg-surface-container-lowest p-5 shadow-sm transition-colors hover:border-primary">
+            <div className="pointer-events-none absolute inset-0 bg-primary/5 opacity-0 transition-opacity group-hover:opacity-100"></div>
+            <div className="relative z-10 flex flex-col items-center justify-between gap-4 sm:flex-row">
+              <div className="flex items-center gap-4">
+                <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-surface-container text-primary ring-1 ring-primary/20">
+                  <span className="material-symbols-outlined text-2xl">cloud_upload</span>
+                </div>
+                <div>
+                  <h2 className="font-bold text-on-surface">Upload a plant image for detection</h2>
+                  <p className="mt-1 text-xs text-on-surface-variant">Supported formats: JPG, PNG, WEBP.</p>
+                  {selectedFile && <p className="mt-1 max-w-md truncate text-xs font-semibold text-primary">{selectedFile.name}</p>}
+                </div>
+              </div>
+              <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-primary px-4 py-2 text-xs font-bold text-on-primary shadow-sm transition-colors hover:bg-primary-container">
+                <span className="material-symbols-outlined text-sm">folder_open</span>
+                Browse Files
+                <input
+                  accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                  className="hidden"
+                  disabled={detecting}
+                  onChange={handleFileChange}
+                  type="file"
+                />
+              </label>
+            </div>
+          </div>
 
-<div className="flex items-center justify-between pb-4 border-b border-outline-variant/30">
-<div className="flex items-center gap-2">
-<span className="material-symbols-outlined text-primary">analytics</span>
-<h2 className="font-headline-md text-headline-md text-on-surface">Telemetry Metadata</h2>
-</div>
-<span className="px-2 py-0.5 rounded font-label-caps text-label-caps bg-surface-container text-primary font-bold">FRAME #084</span>
-</div>
+          <div className="flex flex-col gap-5 rounded-xl border border-outline-variant/40 bg-surface-container-lowest p-5 shadow-sm lg:p-6">
+            <div className="flex flex-col justify-between gap-3 border-b border-outline-variant/30 pb-3 md:flex-row md:items-center">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <h2 className="font-bold text-on-surface">Plant Detection Results &amp; Annotations</h2>
+                {detection && (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-tertiary-fixed px-2.5 py-1 text-xs font-semibold text-on-tertiary-fixed">
+                    <span className="h-1.5 w-1.5 rounded-full bg-tertiary"></span>
+                    Detection saved
+                  </span>
+                )}
+              </div>
+              {detection && (
+                <span className="inline-flex items-center gap-1 rounded-lg border border-outline-variant/30 bg-surface-container-low px-2.5 py-1 text-xs font-semibold text-on-surface-variant">
+                  <span className="material-symbols-outlined text-xs text-primary">verified</span>
+                  Confidence: {(Number(detection.confidence) * 100).toFixed(2)}%
+                </span>
+              )}
+            </div>
 
-<div className="p-3.5 rounded-xl bg-surface-container-low border border-outline-variant/40 flex items-center gap-3">
-<div className="w-12 h-12 rounded-lg bg-surface-dim overflow-hidden flex-shrink-0">
-<img className="w-full h-full object-cover" data-alt="Macro close-up crop of plant leaf showing chlorophyll veins and fungal chlorosis spots in high dynamic range natural light with sharp edges and saturated natural green tones." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBZrXjD_LDeOMatVgfxkHNI34HHPc3HHLfiJ_nFSOM6rNH6NFZI0PjsIYsXpYMcKb1vdJWf5JuJVhSlV8r6r3R2LAHBwilwDwUb0kWDDqItruSkd2j_jZxqwBbgoUNuIUCjDRrg0yFEKasTg1u0EER9Ce9ww9DaLpCeb1SLk3Fz5Yt8sSOMhvwj7RTv6pCT0MCwXVbIXJNFLaZE1f4l5o32_9PC2E3XdfPu3zpXThTDRmMAvwO_k-4lxg" />
-</div>
-<div className="min-w-0 flex-1">
-<div className="font-label-md text-label-md font-bold text-on-surface truncate">Canopy Leaf Phenotype #084.tiff</div>
-<div className="text-[11px] text-outline">Uploaded via IoT Edge Gateway</div>
-</div>
-<span className="material-symbols-outlined text-tertiary">check_circle</span>
-</div>
+            <div className="flex min-h-[300px] items-center justify-center overflow-hidden rounded-xl border border-outline-variant/40 bg-surface-dim">
+              {detection?.image_path ? (
+                <img
+                  alt={`Annotated model result: ${detection.crop} - ${detection.disease}`}
+                  className="block max-h-[460px] w-full object-contain"
+                  src={getImageUrl(detection.image_path)}
+                />
+              ) : (
+                <div className="p-8 text-center text-on-surface-variant">
+                  <span className="material-symbols-outlined text-4xl text-outline">image_search</span>
+                  <p className="mt-2 text-sm">{detecting ? 'Analyzing image and saving result...' : 'Your annotated detection image will appear here.'}</p>
+                </div>
+              )}
+            </div>
+            {detection && (
+              <div className="grid gap-3 rounded-xl border border-outline-variant/30 bg-surface-container-low p-4 text-sm sm:grid-cols-3" aria-live="polite">
+                <div>
+                  <span className="block text-xs text-outline">Crop</span>
+                  <span className="font-semibold text-on-surface">{detection.crop}</span>
+                </div>
+                <div>
+                  <span className="block text-xs text-outline">Detected disease</span>
+                  <span className="font-semibold text-on-surface">{detection.disease}</span>
+                </div>
+                <div>
+                  <span className="block text-xs text-outline">Detection time</span>
+                  <span className="font-semibold text-on-surface">{new Date(detection.detected_at).toLocaleString()}</span>
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
 
-<div>
-<h3 className="font-label-caps text-label-caps text-outline uppercase tracking-wider mb-3">Hardware &amp; EXIF Telemetry</h3>
-<dl className="space-y-2.5">
+        <aside aria-label="Detection Metadata Panel" className="flex w-full flex-col justify-between gap-6 border-t border-outline-variant/40 bg-surface-container-lowest p-6 xl:w-[380px] xl:border-l xl:border-t-0">
+          <div className="flex flex-col gap-6">
+            <div className="flex items-center justify-between border-b border-outline-variant/30 pb-4">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary">analytics</span>
+                <h2 className="font-bold text-on-surface">Telemetry Metadata</h2>
+              </div>
+              <span className="rounded bg-surface-container px-2 py-0.5 text-[10px] font-bold text-primary">
+                {detection ? 'SAVED' : 'READY'}
+              </span>
+            </div>
 
-<div className="flex items-center justify-between py-1.5 px-3 rounded-lg bg-surface border border-outline-variant/20">
-<dt className="flex items-center gap-2 text-on-surface-variant font-label-md text-label-md">
-<span className="material-symbols-outlined text-sm text-outline">description</span>
-                File Size
-              </dt>
-<dd className="font-mono text-xs font-semibold text-on-surface">18.42 MB</dd>
-</div>
+            <div className="flex items-center gap-3 rounded-xl border border-outline-variant/40 bg-surface-container-low p-3.5">
+              <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-surface-dim">
+                {selectedFile ? (
+                  <span className="material-symbols-outlined text-primary">image</span>
+                ) : (
+                  <span className="material-symbols-outlined text-outline">image</span>
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm font-bold text-on-surface">{selectedFile?.name ?? 'No image selected'}</div>
+                <div className="text-[11px] text-outline">
+                  {selectedFile ? `${(selectedFile.size / (1024 * 1024)).toFixed(2)} MB` : 'Choose an image to begin'}
+                </div>
+              </div>
+            </div>
 
-<div className="flex items-center justify-between py-1.5 px-3 rounded-lg bg-surface border border-outline-variant/20">
-<dt className="flex items-center gap-2 text-on-surface-variant font-label-md text-label-md">
-<span className="material-symbols-outlined text-sm text-outline">aspect_ratio</span>
-                Resolution
-              </dt>
-<dd className="font-mono text-xs font-semibold text-on-surface">4096 × 3072 px</dd>
-</div>
+            <div>
+              <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-outline" htmlFor="detection-plant">Select Plant</label>
+              <select
+                className="w-full rounded-lg border border-outline-variant/60 bg-surface px-3 py-2.5 text-sm text-on-surface outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+                disabled={loadingPlants || plants.length === 0 || detecting}
+                id="detection-plant"
+                onChange={(event) => setPlantId(event.target.value)}
+                value={plantId}
+              >
+                {loadingPlants && <option value="">Loading your plants...</option>}
+                {!loadingPlants && plants.length === 0 && <option value="">No plants registered</option>}
+                {!loadingPlants && plants.map((plant) => (
+                  <option key={plant.id} value={plant.id}>{plant.name} — {plant.crop}</option>
+                ))}
+              </select>
+              {selectedPlant && <p className="mt-2 break-all text-[11px] text-outline">Plant ID: {selectedPlant.id}</p>}
+            </div>
 
+            <div>
+              <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-outline">Detection Result</h3>
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between rounded-lg border border-outline-variant/20 bg-surface px-3 py-2">
+                  <span className="text-sm text-on-surface-variant">Crop</span>
+                  <span className="text-sm font-semibold text-on-surface">{detection?.crop ?? selectedPlant?.crop ?? '—'}</span>
+                </div>
+                <div className="flex items-center justify-between rounded-lg border border-outline-variant/20 bg-surface px-3 py-2">
+                  <span className="text-sm text-on-surface-variant">Disease</span>
+                  <span className="max-w-[60%] truncate text-right text-sm font-semibold text-on-surface">{detection?.disease ?? '—'}</span>
+                </div>
+                <div className="flex items-center justify-between rounded-lg border border-outline-variant/20 bg-surface px-3 py-2">
+                  <span className="text-sm text-on-surface-variant">Confidence</span>
+                  <span className="text-sm font-semibold text-on-surface">
+                    {detection ? `${(Number(detection.confidence) * 100).toFixed(2)}%` : '—'}
+                  </span>
+                </div>
+              </div>
+            </div>
 
+            {plants.length === 0 && !loadingPlants && (
+              <Link className="text-sm font-semibold text-primary underline" to="/plants">Register a plant before detection</Link>
+            )}
+          </div>
 
-<div className="flex items-center justify-between py-1.5 px-3 rounded-lg bg-surface border border-outline-variant/20">
-<dt className="flex items-center gap-2 text-on-surface-variant font-label-md text-label-md">
-<span className="material-symbols-outlined text-sm text-outline">location_on</span>
-                GPS Coordinates
-              </dt>
-<dd className="font-mono text-xs font-semibold text-on-surface text-right">37.7749° N, 122.4194° W</dd>
-</div>
-
-
-
-
-</dl>
-</div>
-
-
-
-<div>
-<span className="font-label-caps text-label-caps text-outline uppercase tracking-wider block mb-2">Detected Classes</span>
-<div className="flex flex-wrap gap-1.5">
-<span className="px-2 py-1 rounded bg-error-container text-on-error-container text-xs font-semibold">Cercospora Leaf Spot</span>
-<span className="px-2 py-1 rounded bg-surface-container text-primary text-xs font-semibold">Chlorosis Stage 1</span>
-<span className="px-2 py-1 rounded bg-surface-container-highest text-on-surface-variant text-xs font-semibold">Stomata Constriction</span>
-</div><button className="w-full mt-3 py-2.5 px-4 rounded-lg bg-primary-container text-on-primary font-label-md text-label-md font-bold hover:bg-primary transition-all flex items-center justify-center gap-2 shadow-sm" type="button"><span className="material-symbols-outlined text-base">psychology</span>Run Model Detection</button>
-</div>
-</div>
-
-<div className="pt-4 border-t border-outline-variant/30 flex flex-col gap-2.5">
-
-
-</div>
-</aside>
-</main>
-
-
-
-
-
+          <div className="border-t border-outline-variant/30 pt-4">
+            <button
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary-container px-4 py-2.5 text-sm font-bold text-on-primary shadow-sm transition-colors hover:bg-primary disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={detecting || loadingPlants || plants.length === 0 || !selectedFile}
+              onClick={handleDetection}
+              type="button"
+            >
+              <span className="material-symbols-outlined text-base">psychology</span>
+              {detecting ? 'Running Detection...' : 'Run Model Detection'}
+            </button>
+          </div>
+        </aside>
+      </main>
     </div>
   );
 }
