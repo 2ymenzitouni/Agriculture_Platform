@@ -189,7 +189,7 @@ export default function IoT_Simulator() {
     <div className="w-full">
       <aside className="fixed top-0 left-0 h-full w-[68px] z-40 bg-surface-container-lowest dark:bg-inverse-surface border-r border-outline-variant/30 dark:border-outline/20 shadow-sm flex flex-col justify-between items-center py-5">
         <div className="flex flex-col items-center gap-1">
-          <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-on-primary shadow-sm" title="AeroSense IoT - Telemetry v2.4">
+          <div className="invisible w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-on-primary shadow-sm" title="AeroSense IoT - Telemetry v2.4">
             <span className="material-symbols-outlined text-xl" data-icon="sensors">sensors</span>
           </div>
         </div>

@@ -98,7 +98,7 @@ export default function Image_Upload() {
   return (
     <div className="w-full">
       <aside aria-label="Main Navigation" className="fixed left-0 top-0 z-40 flex h-screen w-[68px] flex-col items-center justify-between border-r border-outline-variant/30 bg-surface-container-lowest py-5 dark:bg-inverse-surface">
-        <div className="flex flex-col items-center gap-1">
+        <div className="invisible flex flex-col items-center gap-1">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-container text-on-primary shadow-sm" title="AeroSense IoT">
             <span className="material-symbols-outlined">sensors</span>
           </div>
