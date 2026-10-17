@@ -10,7 +10,7 @@ class PlantBase(BaseModel):
     planted_at: date | None = None
 
 class PlantCreate(PlantBase):
-    user_id: UUID
+    pass
 
 class PlantUpdate(BaseModel):
     name: str | None = None
