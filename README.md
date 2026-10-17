@@ -420,6 +420,7 @@ Delete a plant and its associated telemetry/detections.
 
 #### `POST /api/sensors/sensor-readings/`
 Record real-time telemetry metrics for a monitored plant.
+- **Authentication**: Required. Send `Authorization: Bearer <token>`. The plant must belong to the authenticated user.
 - **Request Body** (`application/json`):
   ```json
   {
@@ -451,6 +452,7 @@ Record real-time telemetry metrics for a monitored plant.
 
 #### `GET /api/sensors/sensor-readings/plant/{plant_id}`
 Retrieve historical sensor readings for a plant in reverse chronological order.
+- **Authentication**: Required. Send `Authorization: Bearer <token>`. The plant must belong to the authenticated user.
 - **Path Parameter**: `plant_id` (UUID)
 - **Query Parameters**: `skip` (default: 0), `limit` (default: 100)
 - **Response** (`200 OK`): Array of sensor reading objects.
@@ -461,6 +463,7 @@ Retrieve historical sensor readings for a plant in reverse chronological order.
 
 #### `POST /api/diseases/detect`
 Upload a leaf image to execute YOLOv8 inference, draw bounding boxes, and save detection history.
+- **Authentication**: Required. Send `Authorization: Bearer <token>`. The selected plant must belong to the authenticated user.
 - **Request Format**: `multipart/form-data`
 - **Form Fields**:
   - `plant_id` (UUID, required): Plant ID linked to the detection
@@ -585,6 +588,7 @@ curl http://localhost:8000/api/plants/mine \
 # 5. Ingest sensor reading (replace plant_id with your plant UUID)
 curl -X POST http://localhost:8000/api/sensors/sensor-readings/ \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
   -d '{"plant_id":"YOUR_PLANT_ID","temperature":25.0,"humidity":60.0,"ph":6.0,"tds":750.0,"water_level":90.0,"water_temperature":21.5}'
 
 # 6. Ask the AI assistant
@@ -597,10 +601,8 @@ curl -X POST http://localhost:8000/api/chat/ \
 
 ## 🔌 Remaining Frontend Integrations
 
-The shared Axios client is configured in `client/src/services/app.js` and attaches the JWT from `localStorage`. Authentication and plant registration are connected. Remaining feature integrations:
+The shared Axios client is configured in `client/src/services/app.js` and attaches the JWT from `localStorage`. Authentication, plant registration, IoT telemetry, and disease detection are connected. Remaining feature integrations:
 
-- Map `IoT_Simulator.jsx` to `/api/sensors/sensor-readings/`.
-- Map `Image_Upload.jsx` to `/api/diseases/detect`.
 - Map `AI_Telemetry.jsx` to `/api/chat/`.
 - Map `Knowledge_Base.jsx` to `/api/documents/documents/upload-ai`.
 3. **CORS Configuration**:
