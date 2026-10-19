@@ -137,8 +137,8 @@ export default function Plant_Management() {
     <div className="w-full">
       <aside className="fixed top-0 left-0 h-screen w-[68px] z-40 bg-surface-container-lowest border-r border-outline-variant/30 shadow-sm flex flex-col justify-between items-center py-5">
         <div className="flex flex-col items-center gap-1 group cursor-pointer" title="AeroSense IoT - Telemetry v2.4">
-          <div className="w-10 h-10 rounded-xl bg-primary text-on-primary flex items-center justify-center font-headline-md font-bold shadow-md shadow-primary/20 transition-all duration-200 active:scale-95">
-            <span className="material-symbols-outlined text-[22px]">eco</span>
+          <div className="w-10 h-10 rounded-xl bg-primary text-on-primary flex items-center justify-center font-headline-md font-bold shadow-md shadow-primary/20 transition-all duration-200 active:scale-95 invisible">
+            <span className="invisible material-symbols-outlined text-[22px]">eco</span>
           </div>
           <span className="font-label-caps text-[9px] uppercase tracking-wider text-primary font-bold">Aero</span>
         </div>
@@ -178,7 +178,7 @@ export default function Plant_Management() {
       </aside>
 
       <div className="ml-[68px] flex-1 flex flex-col min-h-screen">
-        <header className="sticky top-0 z-30 bg-surface-container-lowest/90 backdrop-blur-md border-b border-outline-variant/30 px-8 py-3.5 flex items-center justify-between shadow-sm">
+        {/* <header className="sticky top-0 z-30 bg-surface-container-lowest/90 backdrop-blur-md border-b border-outline-variant/30 px-8 py-3.5 flex items-center justify-between shadow-sm">
           <div className="flex items-center gap-3">
             <div className="flex flex-col">
               <span className="font-headline-md text-headline-md font-bold tracking-tight text-on-surface leading-none">AeroSense</span>
@@ -222,7 +222,7 @@ export default function Plant_Management() {
               </div>
             </div>
           </div>
-        </header>
+        </header> */}
 
         <main className="flex-1 p-8 max-w-[1600px] w-full mx-auto space-y-8" ref={formRef}>
           <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">

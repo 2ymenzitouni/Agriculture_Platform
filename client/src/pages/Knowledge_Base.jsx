@@ -1,13 +1,124 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
 import LogoutButton from '../components/LogoutButton';
+import API from '../services/app';
+
+const MAX_FILE_SIZE = 100 * 1024 * 1024;
+const SUPPORTED_EXTENSIONS = new Set(['pdf', 'json', 'csv', 'txt', 'md', 'xml']);
+
+const getErrorMessage = (error, fallback) => {
+  const detail = error.response?.data?.detail;
+  return typeof detail === 'string' ? detail : fallback;
+};
+
+const formatFileSize = (size) => {
+  if (size == null) return '--';
+  const units = ['B', 'KB', 'MB', 'GB'];
+  const unitIndex = Math.min(Math.floor(Math.log(size) / Math.log(1024)), units.length - 1);
+  return `${(size / (1024 ** unitIndex)).toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
+};
 
 export default function Knowledge_Base() {
+  const [documents, setDocuments] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isUploading, setIsUploading] = useState(false);
+  const [deletingDocumentId, setDeletingDocumentId] = useState(null);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const fileInputRef = useRef(null);
+
+  const loadDocuments = useCallback(async () => {
+    setIsLoading(true);
+    setError('');
+    try {
+      const { data } = await API.get('/documents/mine');
+      setDocuments(data);
+    } catch (requestError) {
+      setError(getErrorMessage(requestError, 'Unable to load your documents.'));
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+    API.get('/documents/mine')
+      .then(({ data }) => {
+        if (isMounted) setDocuments(data);
+      })
+      .catch((requestError) => {
+        if (isMounted) setError(getErrorMessage(requestError, 'Unable to load your documents.'));
+      })
+      .finally(() => {
+        if (isMounted) setIsLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const handleUpload = async (file) => {
+    if (!file) return;
+    const extension = file.name.split('.').pop()?.toLowerCase();
+    if (!extension || !SUPPORTED_EXTENSIONS.has(extension)) {
+      setError('Choose a PDF, JSON, CSV, TXT, Markdown, or XML file.');
+      return;
+    }
+    if (file.size > MAX_FILE_SIZE) {
+      setError('The selected file exceeds the 100 MB upload limit.');
+      return;
+    }
+
+    setError('');
+    setNotice('');
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      await API.post('/documents/upload-ai', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setNotice(`${file.name} was processed and added to your knowledge base.`);
+      await loadDocuments();
+    } catch (requestError) {
+      setError(getErrorMessage(requestError, 'Document upload failed. Please try again.'));
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleFileChange = (event) => {
+    handleUpload(event.target.files?.[0]);
+  };
+
+  const handleDrop = (event) => {
+    event.preventDefault();
+    handleUpload(event.dataTransfer.files?.[0]);
+  };
+
+  const handleDelete = async (document) => {
+    if (!window.confirm(`Delete "${document.filename}" from your knowledge base?`)) return;
+    setError('');
+    setDeletingDocumentId(document.id);
+    try {
+      await API.delete(`/documents/${document.id}`);
+      setDocuments((currentDocuments) => currentDocuments.filter((item) => item.id !== document.id));
+    } catch (requestError) {
+      setError(getErrorMessage(requestError, 'Unable to delete this document.'));
+    } finally {
+      setDeletingDocumentId(null);
+    }
+  };
+
   return (
     <div className="w-full">
       
 
 <aside className="fixed top-0 left-0 h-screen w-[68px] z-40 bg-surface-container-lowest dark:bg-inverse-surface border-r border-outline-variant/30 dark:border-outline/20 shadow-sm dark:shadow-none flex flex-col justify-between items-center py-5">
 
-<div className="flex flex-col items-center gap-1">
+<div className="invisible flex flex-col items-center gap-1">
 <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-on-primary shadow-sm">
 <span className="material-symbols-outlined text-[24px]">sensors</span>
 </div>
@@ -59,7 +170,7 @@ export default function Knowledge_Base() {
 
 <div className="flex-1 flex flex-col min-h-screen pl-[68px]">
 
-<header className="sticky top-0 z-30 w-full bg-surface-container-lowest/90 dark:bg-inverse-surface/90 backdrop-blur-md border-b border-outline-variant/30 dark:border-outline/20 shadow-sm dark:shadow-none flex justify-between items-center px-6 py-3.5">
+{/* <header className="sticky top-0 z-30 w-full bg-surface-container-lowest/90 dark:bg-inverse-surface/90 backdrop-blur-md border-b border-outline-variant/30 dark:border-outline/20 shadow-sm dark:shadow-none flex justify-between items-center px-6 py-3.5">
 
 <div className="flex items-center gap-6 flex-1 max-w-2xl">
 <div className="flex items-center gap-2">
@@ -102,7 +213,7 @@ export default function Knowledge_Base() {
           </div>
 </div>
 </div>
-</header>
+</header> */}
 
 <main className="p-6 lg:p-8 space-y-6 flex-1 max-w-[1680px] w-full mx-auto">
 
@@ -129,7 +240,9 @@ export default function Knowledge_Base() {
 </span>
 <div className="text-right">
 <div className="text-[10px] text-outline uppercase font-semibold">Status</div>
-<span className="font-label-md text-label-md font-bold text-tertiary">Vector DB Synced</span>
+<span className="font-label-md text-label-md font-bold text-tertiary">
+  {isLoading ? 'Syncing...' : error ? 'Sync Error' : 'Vector DB Synced'}
+</span>
 </div>
 </div>
 </div>
@@ -140,10 +253,10 @@ export default function Knowledge_Base() {
 <div className="bg-surface-container-lowest p-5 rounded-xl border border-outline-variant/30 shadow-[0_1px_3px_0_rgba(0,0,0,0.04),0_4px_12px_0_rgba(37,99,235,0.03)] flex items-center justify-between">
 <div className="space-y-1">
 <div className="text-label-sm font-label-sm text-outline uppercase tracking-wider">Total Documents Indexed</div>
-<div className="text-display-metric font-display-metric text-on-surface font-extrabold tracking-tight">1,428</div>
+<div className="text-display-metric font-display-metric text-on-surface font-extrabold tracking-tight">{documents.length.toLocaleString()}</div>
 <div className="flex items-center gap-1 text-[12px] text-tertiary font-medium">
 <span className="material-symbols-outlined text-[14px]">trending_up</span>
-<span className="">+34 files ingested today</span>
+<span className="">Documents in your knowledge base</span>
 </div>
 </div>
 <div className="w-12 h-12 rounded-xl bg-surface-container flex items-center justify-center text-primary">
@@ -158,10 +271,10 @@ export default function Knowledge_Base() {
 <div className="bg-surface-container-lowest p-5 rounded-xl border border-outline-variant/30 shadow-[0_1px_3px_0_rgba(0,0,0,0.04),0_4px_12px_0_rgba(37,99,235,0.03)] flex items-center justify-between">
 <div className="space-y-1">
 <div className="text-label-sm font-label-sm text-outline uppercase tracking-wider">Average Query Latency</div>
-<div className="text-display-metric font-display-metric text-on-surface font-extrabold tracking-tight">18 ms</div>
+<div className="text-display-metric font-display-metric text-on-surface font-extrabold tracking-tight">--</div>
 <div className="flex items-center gap-1 text-[12px] text-tertiary font-medium">
 <span className="material-symbols-outlined text-[14px]">bolt</span>
-<span className="">HNSW Cosine Top-K = 5</span>
+<span className="">Query metrics unavailable</span>
 </div>
 </div>
 <div className="w-12 h-12 rounded-xl bg-tertiary-container/10 flex items-center justify-center text-tertiary">
@@ -182,12 +295,33 @@ export default function Knowledge_Base() {
 <span className="text-label-sm font-label-sm bg-surface-container-low text-primary px-2.5 py-1 rounded-full font-semibold border border-surface-variant">Batch Limit: 100MB</span>
 </div>
 
-<div className="border-2 border-dashed border-primary/30 hover:border-primary bg-surface-container-low/40 hover:bg-surface-container-low/80 rounded-xl p-8 flex flex-col items-center justify-center text-center transition-all duration-200 cursor-pointer group">
+<div
+  className="border-2 border-dashed border-primary/30 hover:border-primary bg-surface-container-low/40 hover:bg-surface-container-low/80 rounded-xl p-8 flex flex-col items-center justify-center text-center transition-all duration-200 cursor-pointer group"
+  onClick={() => fileInputRef.current?.click()}
+  onDragOver={(event) => event.preventDefault()}
+  onDrop={handleDrop}
+  role="button"
+  tabIndex={0}
+  onKeyDown={(event) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      fileInputRef.current?.click();
+    }
+  }}
+>
+<input
+  ref={fileInputRef}
+  accept=".pdf,.json,.csv,.txt,.md,.xml"
+  className="hidden"
+  onChange={handleFileChange}
+  onClick={(event) => event.stopPropagation()}
+  type="file"
+/>
 <div className="w-16 h-16 rounded-2xl bg-surface-container flex items-center justify-center text-primary group-hover:scale-105 transition-transform mb-3 shadow-sm ring-4 ring-primary/5">
-<span className="material-symbols-outlined text-[32px]">cloud_upload</span>
+<span className="material-symbols-outlined text-[32px]">{isUploading ? 'sync' : 'cloud_upload'}</span>
 </div>
 <h3 className="font-headline-md text-[16px] text-on-surface font-semibold mb-1">
-                Drag and drop your engineering files here, or <span className="text-primary hover:underline">browse files</span>
+                {isUploading ? 'Processing document...' : <>Drag and drop your engineering files here, or <span className="text-primary hover:underline">browse files</span></>}
 </h3>
 <p className="font-body-md text-[13px] text-on-surface-variant max-w-md mb-4">
                 Structured sensor CSVs, flight manuals (PDF), JSON packet traces, technical incident logs (TXT/Markdown), and firmware specs (XML).
@@ -201,6 +335,8 @@ export default function Knowledge_Base() {
 <span className="px-2.5 py-1 bg-surface-container-lowest rounded-md text-[11px] font-bold text-on-surface border border-outline-variant/30">.MD</span>
 <span className="px-2.5 py-1 bg-surface-container-lowest rounded-md text-[11px] font-bold text-on-surface border border-outline-variant/30">.XML</span>
 </div>
+{error && <p className="mt-3 text-sm text-error" role="alert">{error}</p>}
+{notice && <p className="mt-3 text-sm text-tertiary" role="status">{notice}</p>}
 </div>
 </div>
 
@@ -230,13 +366,13 @@ export default function Knowledge_Base() {
 <p className="font-body-md text-body-md text-on-surface-variant mt-0.5">Real-time status of document parsing, chunk generation, and vector index persistence.</p>
 </div>
 <div className="flex items-center gap-3">
-<button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-outline-variant/40 hover:bg-surface-container-low text-label-md font-label-md text-on-surface transition-all">
+<button onClick={loadDocuments} disabled={isLoading} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-outline-variant/40 hover:bg-surface-container-low text-label-md font-label-md text-on-surface transition-all disabled:opacity-50">
 <span className="material-symbols-outlined text-[16px]">refresh</span>
-<span className="">Sync Status</span>
+<span className="">{isLoading ? 'Syncing...' : 'Sync Status'}</span>
 </button>
-<button className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-primary font-semibold text-label-md font-label-md transition-all">
+<button onClick={() => fileInputRef.current?.click()} disabled={isUploading} className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-primary font-semibold text-label-md font-label-md transition-all disabled:opacity-50">
 <span className="material-symbols-outlined text-[16px]">play_circle</span>
-<span className="">Process All Pending (3)</span>
+<span className="">{isUploading ? 'Processing...' : 'Upload Document'}</span>
 </button>
 </div>
 </div>
@@ -255,157 +391,54 @@ export default function Knowledge_Base() {
 </tr>
 </thead>
 <tbody className="divide-y divide-outline-variant/20 text-body-md font-body-md text-on-surface">
-
-<tr className="hover:bg-surface-container-low/30 transition-colors">
-<td className="py-4 px-6">
-<div className="flex items-center gap-3">
-<div className="w-9 h-9 rounded-lg bg-secondary-fixed/50 text-secondary flex items-center justify-center font-bold">
-<span className="material-symbols-outlined text-[20px]">description</span>
-</div>
-<div>
-<div className="font-bold text-on-surface hover:text-primary cursor-pointer">Turbine_Blade_Vibration_Manual_Rev3.pdf</div>
-<div className="text-[11px] text-outline">Uploaded by Admin • SHA256: 7a9f...b012</div>
-</div>
-</div>
-</td>
-<td className="py-4 px-4 font-mono text-[13px]">14.2 MB</td>
-<td className="py-4 px-4 font-mono text-[13px] font-semibold text-secondary">312 / 370</td>
-<td className="py-4 px-4 font-mono text-[13px]">1536 dims</td>
-<td className="py-4 px-4 font-mono text-[13px] text-outline">1.42s elapsed</td>
-<td className="py-4 px-4">
-<div className="flex flex-col gap-1.5 w-44">
-<div className="flex items-center justify-between text-[11px] font-semibold text-secondary">
-<span className="">Chunking &amp; Vectorizing</span>
-<span className="">84%</span>
-</div>
-<div className="w-full bg-surface-container h-2 rounded-full overflow-hidden">
-<div className="bg-secondary-container h-full rounded-full transition-all duration-300" ></div>
-</div>
-</div>
-</td>
-<td className="py-4 px-6 text-right space-x-1">
-<button className="p-1.5 hover:bg-surface-container rounded text-outline hover:text-on-surface" title="Inspect Chunks">
-<span className="material-symbols-outlined text-[18px]">find_in_page</span>
-</button>
-<button className="p-1.5 hover:bg-error-container/30 rounded text-outline hover:text-error" title="Cancel Ingestion">
-<span className="material-symbols-outlined text-[18px]">cancel</span>
-</button>
-</td>
-</tr>
-
-<tr className="hover:bg-surface-container-low/30 transition-colors">
-<td className="py-4 px-6">
-<div className="flex items-center gap-3">
-<div className="w-9 h-9 rounded-lg bg-tertiary-fixed/40 text-tertiary flex items-center justify-center font-bold">
-<span className="material-symbols-outlined text-[20px]">analytics</span>
-</div>
-<div>
-<div className="font-bold text-on-surface hover:text-primary cursor-pointer">Flight_Sensor_Telemetry_Stream_2024Q3.csv</div>
-<div className="text-[11px] text-outline">Uploaded by Telemetry Node #4 • SHA256: 41ec...f89a</div>
-</div>
-</div>
-</td>
-<td className="py-4 px-4 font-mono text-[13px]">48.7 MB</td>
-<td className="py-4 px-4 font-mono text-[13px] font-semibold text-tertiary">1,840 chunks</td>
-<td className="py-4 px-4 font-mono text-[13px]">1536 dims</td>
-<td className="py-4 px-4 font-mono text-[13px] text-tertiary font-medium">4.88s</td>
-<td className="py-4 px-4">
-<span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-tertiary-fixed/40 text-tertiary border border-tertiary/20">
-<span className="material-symbols-outlined text-[13px]" >check_circle</span>
-<span className="">Vectorized &amp; Indexed</span>
-</span>
-</td>
-<td className="py-4 px-6 text-right space-x-1">
-<button className="p-1.5 hover:bg-surface-container rounded text-outline hover:text-primary" title="Re-index">
-<span className="material-symbols-outlined text-[18px]">refresh</span>
-</button>
-<button className="p-1.5 hover:bg-surface-container rounded text-outline hover:text-on-surface" title="Inspect Chunks">
-<span className="material-symbols-outlined text-[18px]">find_in_page</span>
-</button>
-<button className="p-1.5 hover:bg-error-container/30 rounded text-outline hover:text-error" title="Delete">
-<span className="material-symbols-outlined text-[18px]">delete</span>
-</button>
-</td>
-</tr>
-
-<tr className="hover:bg-surface-container-low/30 transition-colors">
-<td className="py-4 px-6">
-<div className="flex items-center gap-3">
-<div className="w-9 h-9 rounded-lg bg-surface-container text-primary flex items-center justify-center font-bold">
-<span className="material-symbols-outlined text-[20px]">picture_as_pdf</span>
-</div>
-<div>
-<div className="font-bold text-on-surface hover:text-primary cursor-pointer">AeroCore_Firmware_Protocol_v5.pdf</div>
-<div className="text-[11px] text-outline">Uploaded by DevSecOps • SHA256: e871...11cb</div>
-</div>
-</div>
-</td>
-<td className="py-4 px-4 font-mono text-[13px]">8.1 MB</td>
-<td className="py-4 px-4 font-mono text-[13px] text-outline">Extracting...</td>
-<td className="py-4 px-4 font-mono text-[13px]">1536 dims</td>
-<td className="py-4 px-4 font-mono text-[13px] text-outline">0.40s elapsed</td>
-<td className="py-4 px-4">
-<span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-surface-container text-primary border border-surface-variant animate-pulse">
-<span className="material-symbols-outlined text-[13px]">sync</span>
-<span className="">Parsing PDF &amp; OCR</span>
-</span>
-</td>
-<td className="py-4 px-6 text-right space-x-1">
-<button className="p-1.5 text-outline/40 cursor-not-allowed" disabled="" title="Inspect Chunks">
-<span className="material-symbols-outlined text-[18px]">find_in_page</span>
-</button>
-<button className="p-1.5 hover:bg-error-container/30 rounded text-outline hover:text-error" title="Cancel">
-<span className="material-symbols-outlined text-[18px]">cancel</span>
-</button>
-</td>
-</tr>
-
-<tr className="hover:bg-surface-container-low/30 transition-colors">
-<td className="py-4 px-6">
-<div className="flex items-center gap-3">
-<div className="w-9 h-9 rounded-lg bg-error-container/40 text-error flex items-center justify-center font-bold">
-<span className="material-symbols-outlined text-[20px]">code</span>
-</div>
-<div>
-<div className="font-bold text-on-surface hover:text-primary cursor-pointer">Avionics_Telemetry_Schema_Raw.json</div>
-<div className="text-[11px] text-error font-medium">Syntax error: Unterminated string at line 1402</div>
-</div>
-</div>
-</td>
-<td className="py-4 px-4 font-mono text-[13px]">3.4 MB</td>
-<td className="py-4 px-4 font-mono text-[13px] text-outline">0 chunks</td>
-<td className="py-4 px-4 font-mono text-[13px]">--</td>
-<td className="py-4 px-4 font-mono text-[13px] text-outline">0.12s</td>
-<td className="py-4 px-4">
-<span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-error-container text-on-error-container border border-error/20">
-<span className="material-symbols-outlined text-[13px]">error</span>
-<span className="">Failed / Retrying (1/3)</span>
-</span>
-</td>
-<td className="py-4 px-6 text-right space-x-1">
-<button className="p-1.5 hover:bg-surface-container rounded text-error hover:text-on-surface" title="Retry Ingestion">
-<span className="material-symbols-outlined text-[18px]">replay</span>
-</button>
-<button className="p-1.5 hover:bg-error-container/30 rounded text-outline hover:text-error" title="Delete file">
-<span className="material-symbols-outlined text-[18px]">delete</span>
-</button>
-</td>
-</tr>
+{isLoading ? (
+  <tr><td className="px-6 py-8 text-center text-on-surface-variant" colSpan="7">Loading documents...</td></tr>
+) : documents.length === 0 ? (
+  <tr><td className="px-6 py-8 text-center text-on-surface-variant" colSpan="7">No documents uploaded yet.</td></tr>
+) : documents.map((document) => (
+  <tr className="hover:bg-surface-container-low/30 transition-colors" key={document.id}>
+    <td className="py-4 px-6">
+      <div className="flex items-center gap-3">
+        <div className="w-9 h-9 rounded-lg bg-surface-container text-primary flex items-center justify-center font-bold">
+          <span className="material-symbols-outlined text-[20px]">{document.file_type === 'csv' ? 'analytics' : document.file_type === 'json' ? 'code' : 'description'}</span>
+        </div>
+        <div>
+          <div className="font-bold text-on-surface">{document.filename}</div>
+          <div className="text-[11px] text-outline">Uploaded {new Date(document.created_at).toLocaleString()}</div>
+        </div>
+      </div>
+    </td>
+    <td className="py-4 px-4 font-mono text-[13px]">{formatFileSize(document.file_size)}</td>
+    <td className="py-4 px-4 font-mono text-[13px] font-semibold text-secondary">{document.chunk_count ?? '--'} chunks</td>
+    <td className="py-4 px-4 font-mono text-[13px]">768 dims</td>
+    <td className="py-4 px-4 font-mono text-[13px] text-outline">--</td>
+    <td className="py-4 px-4">
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-tertiary-fixed/40 text-tertiary border border-tertiary/20">
+        <span className="material-symbols-outlined text-[13px]">check_circle</span>
+        <span>Vectorized &amp; Indexed</span>
+      </span>
+    </td>
+    <td className="py-4 px-6 text-right space-x-1">
+      <button
+        className="p-1.5 hover:bg-error-container/30 rounded text-outline hover:text-error disabled:opacity-50"
+        disabled={deletingDocumentId === document.id}
+        onClick={() => handleDelete(document)}
+        title="Delete"
+      >
+        <span className="material-symbols-outlined text-[18px]">{deletingDocumentId === document.id ? 'hourglass_top' : 'delete'}</span>
+      </button>
+    </td>
+  </tr>
+))}
 </tbody>
 </table>
 </div>
 
 <div className="p-4 bg-surface-container-low/30 border-t border-outline-variant/20 flex flex-col sm:flex-row items-center justify-between gap-3 text-label-md font-label-md text-on-surface-variant">
 <div className="text-[12px]">
-            Showing <span className="font-bold text-on-surface">4</span> of <span className="font-bold text-on-surface">24</span> active and historical batch ingestion jobs
+            Showing <span className="font-bold text-on-surface">{documents.length}</span> documents in your knowledge base
           </div>
-<div className="flex items-center gap-1">
-<button className="px-2.5 py-1 rounded border border-outline-variant/30 hover:bg-surface-container-low text-[12px] disabled:opacity-50" disabled="">Previous</button>
-<button className="px-2.5 py-1 rounded bg-primary text-on-primary font-bold text-[12px]">1</button>
-<button className="px-2.5 py-1 rounded hover:bg-surface-container-low text-[12px]">2</button>
-<button className="px-2.5 py-1 rounded hover:bg-surface-container-low text-[12px]">3</button>
-<button className="px-2.5 py-1 rounded border border-outline-variant/30 hover:bg-surface-container-low text-[12px]">Next</button>
-</div>
+          <span className="text-[12px]">{isLoading ? 'Syncing with backend...' : 'All documents loaded'}</span>
 </div>
 </section>
 
