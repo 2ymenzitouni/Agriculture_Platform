@@ -21,6 +21,7 @@ UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 EMBEDDING_MODEL = "gemini-embedding-2"
 EMBEDDING_DIMENSIONS = 768
 MAX_RETRIES = 4
+MAX_FILE_SIZE = 100 * 1024 * 1024
 
 
 def _get_status_code(exc: Exception):
@@ -107,6 +108,11 @@ class DocumentExtractorService:
                 raise HTTPException(
                     status_code=400,
                     detail="The uploaded file is empty.",
+                )
+            if len(content) > MAX_FILE_SIZE:
+                raise HTTPException(
+                    status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                    detail="The uploaded file exceeds the 100 MB size limit.",
                 )
 
             file_path.write_bytes(content)
