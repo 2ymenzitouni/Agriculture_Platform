@@ -23,6 +23,10 @@ class Document(Base):
     user = relationship("User", back_populates="documents")
     chunks = relationship("DocumentChunk", back_populates="document", cascade="all, delete-orphan")
 
+    @property
+    def chunk_count(self) -> int:
+        return len(self.chunks)
+
 
 class DocumentChunk(Base):
     __tablename__ = "document_chunks"

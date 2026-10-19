@@ -1,6 +1,7 @@
 import uuid
+from pathlib import Path
 from fastapi import HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 from app.models.documentModel import Document, DocumentChunk
 from app.models.usersModel import User  # Adjust import path if needed
 
@@ -33,7 +34,36 @@ class DocumentService:
         return document
 
     def get_user_documents(self, user_id: uuid.UUID) -> list[Document]:
-        return self.db.query(Document).filter(Document.user_id == user_id).order_by(Document.created_at.desc()).all()
+        return (
+            self.db.query(Document)
+            .options(selectinload(Document.chunks))
+            .filter(Document.user_id == user_id)
+            .order_by(Document.created_at.desc())
+            .all()
+        )
+
+    def delete_user_document(self, document_id: uuid.UUID, user_id: uuid.UUID) -> None:
+        document = (
+            self.db.query(Document)
+            .filter(Document.id == document_id, Document.user_id == user_id)
+            .first()
+        )
+        if not document:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+
+        file_path = Path(document.file_path).resolve() if document.file_path else None
+        upload_dir = Path("static/documents").resolve()
+        self.db.delete(document)
+        self.db.commit()
+
+        if file_path and file_path.parent == upload_dir:
+            try:
+                file_path.unlink(missing_ok=True)
+            except OSError as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Document was deleted, but its uploaded file could not be removed.",
+                ) from exc
 
     def get_document_by_id(self, document_id: uuid.UUID) -> Document:
         document = self.db.query(Document).filter(Document.id == document_id).first()

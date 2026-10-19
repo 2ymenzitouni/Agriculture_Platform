@@ -94,7 +94,7 @@ api_router.include_router(
 
 api_router.include_router(
     documents_router,
-    prefix="/documents",
+    prefix="",
     tags=["RAG Documents"],
 )
 #

@@ -17,6 +17,7 @@ class DocumentResponse(BaseModel):
     file_type: str | None
     file_size: int | None
     created_at: datetime
+    chunk_count: int
 
     model_config = ConfigDict(from_attributes=True)
 
