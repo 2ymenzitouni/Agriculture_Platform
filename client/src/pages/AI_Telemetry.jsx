@@ -1,6 +1,315 @@
+<<<<<<< HEAD
+import { useEffect, useRef, useState } from 'react';
+import LogoutButton from '../components/LogoutButton';
+import API from '../services/app';
+
+const sensorMetrics = [
+  { key: 'ph', label: 'pH', unit: '' },
+  { key: 'tds', label: 'TDS', unit: 'ppm' },
+  { key: 'temperature', label: 'Air temperature', unit: '°C' },
+  { key: 'humidity', label: 'Humidity', unit: '%' },
+  { key: 'water_temperature', label: 'Water temperature', unit: '°C' },
+  { key: 'water_level', label: 'Water level', unit: '%' },
+  { key: 'light', label: 'Light', unit: '' },
+];
+
+function getRequestedSensorMetrics(question) {
+  const normalizedQuestion = question.toLowerCase();
+  const metrics = sensorMetrics.filter(({ key, label }) => {
+    const terms = {
+      ph: [/\bp\s*h\b|\bph\b/],
+      tds: [/\btds\b/],
+      temperature: [/\bair temperature\b/, /\btemperature\b(?!\s*(?:of|in)\s*water)/],
+      humidity: [/\bhumidity\b/],
+      water_temperature: [/\bwater temperature\b/, /\btemperature of (?:the )?water\b/],
+      water_level: [/\bwater level\b/],
+      light: [/\blight\b/, /\blux\b/],
+    }[key];
+    return terms.some((term) => term.test(normalizedQuestion)) || normalizedQuestion.includes(label.toLowerCase());
+  });
+
+  if (metrics.length > 0) return metrics;
+
+  const asksAboutSensorData =
+    /\b(current|currently|latest|now|sensor|reading|measurement)\b/.test(normalizedQuestion)
+    || /\bmy\b/.test(normalizedQuestion);
+  return asksAboutSensorData ? sensorMetrics : [];
+}
+
+function formatReadingTimestamp(timestamp) {
+  if (!timestamp) return '—';
+  const parsedTimestamp = new Date(timestamp);
+  return Number.isNaN(parsedTimestamp.getTime())
+    ? String(timestamp)
+    : parsedTimestamp.toLocaleString();
+}
+
+function asksForDetectionHistory(question) {
+  return /\b(detect\w*|diagnos\w*|image\w*|photo\w*|picture\w*|history|record\w*|found|seen)\b/i.test(question)
+    && /\b(disease\w*|detect\w*|image\w*|photo\w*|picture\w*|diagnos\w*|infection\w*|infected|sick|blight|spot|mildew|mosaic|rust|rot|wilt|canker|scab|septoria|anthracnose|target)\b/i.test(question);
+}
+
+function getDetectionImageUrl(imagePath) {
+  if (!imagePath) return '';
+  return new URL(
+    imagePath,
+    new URL(API.defaults.baseURL, window.location.origin),
+  ).toString();
+}
+
+function splitAnswerIntoSections(answer) {
+  const normalizedAnswer = answer
+    .replace(/\*{3}([^*\n]+)\*\*/g, '**$1**')
+    .replace(/\s+(?=#{1,3}\s+)/g, '\n')
+    .replace(/(^#{1,3}\s+.+?\*\*)\s+(?=[-*]\s+)/gm, '$1\n')
+    .replace(/([.!?])\s+(?=[-*]\s+)/g, '$1\n');
+  const lines = normalizedAnswer.split(/\r?\n/);
+  const headingLevel = lines.some((line) => /^##\s+/.test(line)) ? 2 : 3;
+  const headingPattern = new RegExp(`^#{1,${headingLevel}}\\s+(.+)$`);
+  const sections = [];
+  let currentSection = null;
+
+  lines.forEach((line) => {
+    const heading = line.match(headingPattern);
+    if (heading) {
+      currentSection = {
+        title: heading[1].trim(),
+        lines: [],
+      };
+      sections.push(currentSection);
+    } else if (currentSection) {
+      currentSection.lines.push(line);
+    } else if (line.trim()) {
+      currentSection = { title: 'Overview', lines: [line] };
+      sections.push(currentSection);
+    }
+  });
+
+  return sections;
+}
+
+function renderInlineMarkdown(text, keyPrefix) {
+  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/g);
+
+  return parts.map((part, index) => {
+    const key = `${keyPrefix}-${index}`;
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return <strong key={key}>{part.slice(2, -2)}</strong>;
+    }
+    if (part.startsWith('*') && part.endsWith('*')) {
+      return <em key={key}>{part.slice(1, -1)}</em>;
+    }
+    if (part.startsWith('`') && part.endsWith('`')) {
+      return <code className="rounded bg-surface-container px-1" key={key}>{part.slice(1, -1)}</code>;
+    }
+    return part;
+  });
+}
+
+function renderDiseaseSectionContent(lines) {
+  const blocks = [];
+  let paragraph = [];
+  let listItems = [];
+  let tableLines = [];
+
+  const flushParagraph = () => {
+    if (paragraph.length) {
+      blocks.push(
+        <p className="text-body-md text-on-surface-variant" key={`paragraph-${blocks.length}`}>
+          {paragraph.flatMap((line, index) => [
+            ...(index > 0 ? [' '] : []),
+            ...renderInlineMarkdown(line, `paragraph-${blocks.length}-${index}`),
+          ])}
+        </p>,
+      );
+      paragraph = [];
+    }
+  };
+  const flushList = () => {
+    if (listItems.length) {
+      blocks.push(
+        <ul className="list-disc space-y-1 pl-5 text-body-md text-on-surface-variant" key={`list-${blocks.length}`}>
+          {listItems.map((item, index) => (
+            <li key={`list-${blocks.length}-${index}`}>{renderInlineMarkdown(item, `list-${blocks.length}-${index}`)}</li>
+          ))}
+        </ul>,
+      );
+      listItems = [];
+    }
+  };
+  const flushTable = () => {
+    if (tableLines.length) {
+      const rows = tableLines
+        .filter((line) => !/^\|?[\s:|-]+\|?$/.test(line.trim()))
+        .map((line) => line.split('|').slice(1, -1).map((cell) => cell.trim()));
+      if (rows.length) {
+        blocks.push(
+          <div className="overflow-x-auto" key={`table-${blocks.length}`}>
+            <table className="w-full min-w-max border-collapse text-left text-label-sm font-label-sm">
+              <thead className="bg-surface-container-low text-on-surface">
+                <tr>
+                  {rows[0].map((cell, index) => (
+                    <th className="border-b border-outline-variant/40 px-3 py-2 font-semibold" key={`header-${index}`}>
+                      {renderInlineMarkdown(cell, `table-header-${index}`)}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.slice(1).map((row, rowIndex) => (
+                  <tr className="border-b border-outline-variant/30 last:border-b-0" key={`row-${rowIndex}`}>
+                    {rows[0].map((_, cellIndex) => (
+                      <td className="px-3 py-2 text-on-surface-variant" key={`cell-${cellIndex}`}>
+                        {renderInlineMarkdown(row[cellIndex] ?? '', `table-${rowIndex}-${cellIndex}`)}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>,
+        );
+      }
+      tableLines = [];
+    }
+  };
+
+  lines.forEach((line, index) => {
+    const trimmedLine = line.trim();
+    if (trimmedLine.startsWith('|')) {
+      flushParagraph();
+      flushList();
+      tableLines.push(trimmedLine);
+      return;
+    }
+    flushTable();
+
+    const subheading = trimmedLine.match(/^###\s+(.+)$/);
+    if (subheading) {
+      flushParagraph();
+      flushList();
+      blocks.push(
+        <h4 className="pt-1 font-semibold text-on-surface" key={`subheading-${index}`}>
+          {renderInlineMarkdown(subheading[1], `subheading-${index}`)}
+        </h4>,
+      );
+      return;
+    }
+
+    const listItem = trimmedLine.match(/^[-*]\s+(.+)$/);
+    if (listItem) {
+      flushParagraph();
+      listItems.push(listItem[1]);
+      return;
+    }
+    flushList();
+
+    if (!trimmedLine) {
+      flushParagraph();
+      return;
+    }
+    paragraph.push(trimmedLine);
+  });
+
+  flushTable();
+  flushList();
+  flushParagraph();
+  return blocks;
+}
+
+function StructuredAnswerCards({ answer }) {
+  const sections = splitAnswerIntoSections(answer);
+  if (!sections.length) return null;
+
+  return (
+    <div className="grid gap-3">
+      {sections.map((section, index) => (
+        <section
+          className="overflow-hidden rounded-xl border border-outline-variant/40 bg-surface-container-lowest"
+          key={`${section.title}-${index}`}
+        >
+          <h3 className="border-b border-outline-variant/30 bg-surface-container-low px-4 py-3 font-semibold text-on-surface">
+            {renderInlineMarkdown(section.title, `section-title-${index}`)}
+          </h3>
+          <div className="space-y-3 p-4">
+            {renderDiseaseSectionContent(section.lines)}
+          </div>
+        </section>
+      ))}
+    </div>
+  );
+}
+
+export default function AI_Telemetry() {
+  const [message, setMessage] = useState('');
+  const [chatMessages, setChatMessages] = useState([]);
+  const [isSending, setIsSending] = useState(false);
+  const [chatError, setChatError] = useState('');
+  const chatEndRef = useRef(null);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages, isSending, chatError]);
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+    const userMessage = message.trim();
+    if (!userMessage || isSending) return;
+
+    setChatMessages((currentMessages) => [
+      ...currentMessages,
+      {
+        role: 'user',
+        content: userMessage,
+        time: new Date().toLocaleTimeString([], {
+          hour: 'numeric',
+          minute: '2-digit',
+        }),
+      },
+    ]);
+    setMessage('');
+    setChatError('');
+    setIsSending(true);
+
+    try {
+      const { data } = await API.post('/chat/', {
+        session_id: 1,
+        message: userMessage,
+      });
+      setChatMessages((currentMessages) => [
+        ...currentMessages,
+        {
+          role: 'assistant',
+          content: data.answer,
+          sources: data.sources_used ?? [],
+          sensorSnapshot: data.sensor_snapshot ?? {},
+          sensorReadings: data.sensor_readings ?? [],
+          sensorMetrics: getRequestedSensorMetrics(userMessage),
+          diseaseDetections: data.disease_detections ?? [],
+          showDiseaseDetections: asksForDetectionHistory(userMessage),
+          time: new Date().toLocaleTimeString([], {
+            hour: 'numeric',
+            minute: '2-digit',
+          }),
+        },
+      ]);
+    } catch (error) {
+      const detail = error.response?.data?.detail;
+      setChatError(
+        typeof detail === 'string'
+          ? detail
+          : 'Unable to get an answer right now. Please try again.',
+      );
+    } finally {
+      setIsSending(false);
+    }
+  }
+
+=======
 import LogoutButton from '../components/LogoutButton';
 
 export default function AI_Telemetry() {
+>>>>>>> origin/main
   return (
     <div className="w-full min-h-screen bg-background text-on-surface flex flex-col overflow-x-hidden">
       
@@ -448,26 +757,203 @@ export default function AI_Telemetry() {
                 </div>
               </div>
             </div>
+<<<<<<< HEAD
+
+            {chatMessages.map((chatMessage, index) => (
+              chatMessage.role === 'user' ? (
+                <div className="flex justify-end gap-3 max-w-4xl ml-auto" key={`user-${index}`}>
+                  <div className="flex flex-col items-end">
+                    <div className="bg-primary text-on-primary rounded-2xl rounded-tr-xs px-4 py-3 shadow-sm max-w-xl">
+                      <p className="font-body-md text-body-md whitespace-pre-wrap">{chatMessage.content}</p>
+                    </div>
+                    <div className="flex items-center gap-1 text-label-sm font-label-sm text-outline mt-1 pr-1">
+                      <span>{chatMessage.time}</span>
+                      <span className="material-symbols-outlined text-[14px] text-primary">done_all</span>
+                    </div>
+                  </div>
+                  <div className="w-8 h-8 rounded-full bg-primary-container text-on-primary flex items-center justify-center text-label-sm font-bold shrink-0">
+                    You
+                  </div>
+                </div>
+              ) : (
+                <div className="flex gap-3 max-w-5xl" key={`assistant-${index}`}>
+                  <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center text-on-primary shrink-0 shadow-sm">
+                    <span className="material-symbols-outlined text-[20px]">smart_toy</span>
+                  </div>
+                  <div className="bg-surface-container-lowest border border-outline-variant/40 rounded-2xl rounded-tl-xs p-5 shadow-sm space-y-3 flex-1">
+                    {chatMessage.sensorMetrics.length > 0 && (
+                      <div className="overflow-x-auto rounded-xl border border-outline-variant/40">
+                        <table className="w-full min-w-max border-collapse text-left text-label-sm font-label-sm">
+                          <caption className="bg-surface-container-low px-3 py-2 text-left font-semibold text-on-surface">
+                            Sensor readings ({chatMessage.sensorReadings.length})
+                          </caption>
+                          <thead className="bg-surface-container-low/60 text-on-surface-variant">
+                            <tr>
+                              {chatMessage.sensorMetrics.map((metric) => (
+                                <th className="px-3 py-2 font-semibold" key={metric.key} scope="col">
+                                  {metric.label}
+                                </th>
+                              ))}
+                              <th className="px-3 py-2 font-semibold" scope="col">Recorded</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {chatMessage.sensorReadings.map((reading, readingIndex) => (
+                              <tr className="border-t border-outline-variant/30" key={`${reading.timestamp}-${readingIndex}`}>
+                                {chatMessage.sensorMetrics.map((metric) => {
+                                  const value = reading[metric.key];
+                                  return (
+                                    <td className="px-3 py-2 text-on-surface-variant" key={metric.key}>
+                                      {value === null || value === undefined
+                                        ? '—'
+                                        : `${value}${metric.unit ? ` ${metric.unit}` : ''}`}
+                                    </td>
+                                  );
+                                })}
+                                <td className="px-3 py-2 text-on-surface-variant">
+                                  {formatReadingTimestamp(reading.timestamp)}
+                                </td>
+                              </tr>
+                            ))}
+                            {chatMessage.sensorReadings.length === 0 && (
+                              <tr className="border-t border-outline-variant/30">
+                                <td
+                                  className="px-3 py-3 text-on-surface-variant"
+                                  colSpan={chatMessage.sensorMetrics.length + 1}
+                                >
+                                  No sensor readings found.
+                                </td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                    {chatMessage.showDiseaseDetections && (
+                      <section className="overflow-hidden rounded-xl border border-outline-variant/40">
+                        <h3 className="bg-surface-container-low px-3 py-2 text-label-sm font-label-sm font-semibold text-on-surface">
+                          Disease detection history ({chatMessage.diseaseDetections.length})
+                        </h3>
+                        {chatMessage.diseaseDetections.length > 0 ? (
+                          <div className="grid grid-cols-1 gap-3 p-3 sm:grid-cols-2">
+                            {chatMessage.diseaseDetections.map((detection, detectionIndex) => (
+                              <article
+                                className="overflow-hidden rounded-lg border border-outline-variant/40 bg-surface-container-lowest"
+                                key={detection.id ?? `${detection.detection_time}-${detectionIndex}`}
+                              >
+                                {detection.image_path ? (
+                                  <img
+                                    alt={`${detection.prediction} detection on ${detection.crop ?? 'plant'}`}
+                                    className="h-48 w-full bg-surface-container object-contain"
+                                    loading="lazy"
+                                    src={getDetectionImageUrl(detection.image_path)}
+                                  />
+                                ) : (
+                                  <div className="flex h-24 items-center justify-center bg-surface-container text-label-sm font-label-sm text-outline">
+                                    No detection image available
+                                  </div>
+                                )}
+                                <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 border-t border-outline-variant/30 p-3 text-label-sm font-label-sm">
+                                  <dt className="font-semibold text-on-surface">Disease</dt>
+                                  <dd className="text-on-surface-variant">{detection.prediction ?? 'Unknown'}</dd>
+                                  <dt className="font-semibold text-on-surface">Crop</dt>
+                                  <dd className="text-on-surface-variant">{detection.crop ?? '—'}</dd>
+                                  <dt className="font-semibold text-on-surface">Plant</dt>
+                                  <dd className="text-on-surface-variant">{detection.plant_name ?? '—'}</dd>
+                                  <dt className="font-semibold text-on-surface">Confidence</dt>
+                                  <dd className="text-on-surface-variant">
+                                    {detection.confidence == null
+                                      ? '—'
+                                      : `${(Number(detection.confidence) * 100).toFixed(1)}%`}
+                                  </dd>
+                                  <dt className="font-semibold text-on-surface">Detected</dt>
+                                  <dd className="text-on-surface-variant">
+                                    {formatReadingTimestamp(detection.detection_time)}
+                                  </dd>
+                                </dl>
+                              </article>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="px-3 py-4 text-label-sm font-label-sm text-on-surface-variant">
+                            No disease detections have been recorded for your plants.
+                          </p>
+                        )}
+                      </section>
+                    )}
+                    <StructuredAnswerCards answer={chatMessage.content} />
+                    {chatMessage.sources.length > 0 && (
+                      <div className="border-t border-outline-variant/20 pt-2 text-label-sm font-label-sm text-outline">
+                        Sources: {[...new Set(chatMessage.sources.map((source) => source.document))].join(', ')}
+                      </div>
+                    )}
+                    <div className="text-right text-label-sm font-label-sm text-outline">
+                      {chatMessage.time}
+                    </div>
+                  </div>
+                </div>
+              )
+            ))}
+
+            {isSending && (
+              <div className="flex gap-3 max-w-5xl" aria-live="polite">
+                <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center text-on-primary shrink-0 shadow-sm">
+                  <span className="material-symbols-outlined text-[20px]">smart_toy</span>
+                </div>
+                <div className="bg-surface-container-lowest border border-outline-variant/40 rounded-2xl rounded-tl-xs px-4 py-3 shadow-sm text-body-md text-on-surface-variant">
+                  Searching your farm data and preparing an answer…
+                </div>
+              </div>
+            )}
+            {chatError && (
+              <p className="ml-11 text-label-sm font-label-sm text-error" role="alert">
+                {chatError}
+              </p>
+            )}
+            <div ref={chatEndRef} />
+=======
+>>>>>>> origin/main
           </div>
 
           {/* Chat Input Footer */}
           <footer className="p-4 bg-surface-container-lowest border-t border-outline-variant/30 shrink-0">
             <div className="max-w-5xl mx-auto space-y-2">
+<<<<<<< HEAD
+              <form className="relative bg-surface-container-low border border-outline-variant/40 rounded-xl p-2 flex items-center gap-2 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 transition-all shadow-sm" onSubmit={handleSubmit}>
+=======
               <div className="relative bg-surface-container-low border border-outline-variant/40 rounded-xl p-2 flex items-center gap-2 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 transition-all shadow-sm">
+>>>>>>> origin/main
                 <button className="p-2 rounded-lg text-outline hover:text-on-surface hover:bg-surface-container transition-colors shrink-0" title="Attach telemetry dump, sensor log, or CSV">
                   <span className="material-symbols-outlined text-[20px]">attach_file</span>
                 </button>
 
+<<<<<<< HEAD
+                <input
+                  className="w-full bg-transparent border-0 focus:ring-0 text-body-md font-body-md text-on-surface placeholder:text-outline/70 focus:outline-none"
+                  onChange={(event) => setMessage(event.target.value)}
+                  placeholder="Ask about your crop, sensor readings, or disease detections..."
+                  type="text"
+                  value={message}
+                />
+=======
                 <input className="w-full bg-transparent border-0 focus:ring-0 text-body-md font-body-md text-on-surface placeholder:text-outline/70 focus:outline-none" placeholder="Ask AeroSense AI diagnostic questions, run sensor tests, or trigger automated commands..." type="text" />
+>>>>>>> origin/main
 
                 <button className="p-2 rounded-lg text-outline hover:text-primary hover:bg-surface-container transition-colors shrink-0" title="Voice Telemetry Input">
                   <span className="material-symbols-outlined text-[20px]">mic</span>
                 </button>
 
+<<<<<<< HEAD
+                <button className="w-10 h-10 rounded-lg bg-primary text-on-primary flex items-center justify-center hover:bg-primary/90 transition-all shrink-0 shadow-sm active:scale-95 disabled:opacity-50" disabled={isSending || !message.trim()} title="Send message" type="submit">
+                  <span className="material-symbols-outlined text-[20px]">send</span>
+                </button>
+              </form>
+=======
                 <button className="w-10 h-10 rounded-lg bg-primary text-on-primary flex items-center justify-center hover:bg-primary/90 transition-all shrink-0 shadow-sm active:scale-95" title="Send message">
                   <span className="material-symbols-outlined text-[20px]">send</span>
                 </button>
               </div>
+>>>>>>> origin/main
 
               <div className="flex items-center justify-between px-1 text-label-sm font-label-sm text-outline">
                 <div className="flex items-center gap-1.5">
