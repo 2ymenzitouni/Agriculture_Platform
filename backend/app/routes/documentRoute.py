@@ -10,7 +10,7 @@ from app.models.usersModel import User
 from app.services.documentService import DocumentService
 
 router = APIRouter(prefix="/documents", tags=["Documents & Chunks"])
-GEMINI_MODEL = "gemini-3.1-flash-lite"
+GEMINI_MODEL = "choose-your-gemini-model-here"  # Replace with your actual Gemini model
 
 @router.get("/mine", response_model=List[DocumentResponse])
 def get_my_documents(

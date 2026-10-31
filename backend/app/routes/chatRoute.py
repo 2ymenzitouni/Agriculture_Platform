@@ -16,8 +16,8 @@ router = APIRouter(prefix="/chat", tags=["Hydroponic Chatbot"])
 
 # Configuration variables (API key defined here once and passed down)
 DATABASE_URL = os.getenv("DATABASE_URL")
-GEMINI_API_KEY = "AQ.Ab8RN6IYRHW4bXqKfHujxEi_HuhausMLgi40l42O_hphIxdUhA"
-GEMINI_MODEL = "gemini-3.1-flash-lite"
+GEMINI_API_KEY = "Put your Gemini API key here"  # Replace with your actual Gemini API key
+GEMINI_MODEL = "Choose your Gemini model here"  # Replace with your actual Gemini model
 
 class ChatRequest(BaseModel):
     session_id: int = Field(default=1, gt=0)
