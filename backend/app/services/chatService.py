@@ -1,10 +1,14 @@
+<<<<<<< HEAD
 import re
 from uuid import UUID
 
+=======
+>>>>>>> origin/main
 import asyncpg
 from google import genai
 from google.genai import types
 
+<<<<<<< HEAD
 EMBEDDING_MODEL = "gemini-embedding-2"
 DETECTION_REQUEST_STOP_WORDS = {
     "a", "all", "and", "can", "called", "detection", "detections", "disease",
@@ -87,18 +91,47 @@ class ChatService:
     async def get_sensor_readings(self, user_id: UUID) -> list[dict]:
         async with self.db_pool.acquire() as conn:
             rows = await conn.fetch(
+=======
+class ChatService:
+    def __init__(self, db_pool: asyncpg.Pool, gemini_api_key: str):
+        self.db_pool = db_pool
+        self.gemini_client = genai.Client(api_key=gemini_api_key)
+
+    async def _get_embedding(self, text: str) -> list[float]:
+        """Generates a vector embedding for the user query using Gemini."""
+        response = self.gemini_client.models.embed_content(
+            model="gemini-embedding-001",
+            contents=text,
+            config=types.EmbedContentConfig(output_dimensionality=768)
+        )
+        return response.embeddings[0].values
+
+    async def get_latest_sensor_reading(self, user_id: str) -> dict:
+        async with self.db_pool.acquire() as conn:
+            row = await conn.fetchrow(
+>>>>>>> origin/main
                 """
                 SELECT temperature, humidity, water_temperature, water_level, ph, tds, light, recorded_at as timestamp
                 FROM sensor_readings sr
                 JOIN plants p ON sr.plant_id = p.id
                 WHERE p.user_id = $1
                 ORDER BY sr.recorded_at DESC
+<<<<<<< HEAD
                 """,
                 user_id
             )
             return [dict(row) for row in rows]
 
     async def get_latest_disease_detection(self, user_id: UUID) -> dict:
+=======
+                LIMIT 1;
+                """,
+                user_id
+            )
+            return dict(row) if row else {}
+
+    async def get_latest_disease_detection(self, user_id: str) -> dict:
+>>>>>>> origin/main
         async with self.db_pool.acquire() as conn:
             row = await conn.fetchrow(
                 """
@@ -113,6 +146,7 @@ class ChatService:
             )
             return dict(row) if row else {}
 
+<<<<<<< HEAD
     async def get_disease_detections(self, user_id: UUID) -> list[dict]:
         async with self.db_pool.acquire() as conn:
             rows = await conn.fetch(
@@ -153,6 +187,10 @@ class ChatService:
         limit: int = 3,
     ) -> list[dict]:
         """Searches this user's document chunks by vector similarity."""
+=======
+    async def search_knowledge_base(self, query_embedding: list[float], limit: int = 3) -> list[dict]:
+        """Performs vector similarity search, joining document_chunks with documents to get the filename."""
+>>>>>>> origin/main
         async with self.db_pool.acquire() as conn:
             rows = await conn.fetch(
                 """
@@ -160,6 +198,7 @@ class ChatService:
                        (c.embedding <=> $1::vector) as distance
                 FROM document_chunks c
                 JOIN documents d ON c.document_id = d.id
+<<<<<<< HEAD
                 WHERE d.user_id = $2
                 ORDER BY distance ASC
                 LIMIT $3;
@@ -268,6 +307,21 @@ class ChatService:
             latest_detection = disease_detections[0]
         elif asks_for_detection_history:
             latest_detection = {}
+=======
+                ORDER BY distance ASC
+                LIMIT $2;
+                """,
+                str(query_embedding), limit
+            )
+            return [dict(row) for row in rows]
+
+    async def process_chat_turn(self, user_id: str, session_id: int, user_message: str) -> dict:
+        query_embedding = await self._get_embedding(user_message)
+
+        knowledge_chunks = await self.search_knowledge_base(query_embedding, limit=3)
+        latest_sensor = await self.get_latest_sensor_reading(user_id)
+        latest_detection = await self.get_latest_disease_detection(user_id)
+>>>>>>> origin/main
 
         context_str = "--- AGRICULTURAL KNOWLEDGE CHUNKS ---\n"
         for chunk in knowledge_chunks:
@@ -285,6 +339,7 @@ class ChatService:
         if latest_detection:
             context_str += f"Time: {latest_detection.get('detection_time')}\n" \
                            f"Prediction: {latest_detection.get('prediction')} (Confidence: {latest_detection.get('confidence')})\n\n"
+<<<<<<< HEAD
         elif not (asks_for_yesterdays_detection or asks_for_detection_history):
             context_str += "No recent disease detections.\n\n"
 
@@ -361,10 +416,27 @@ class ChatService:
 
         response = self.gemini_client.models.generate_content(
             model=self.gemini_model,
+=======
+        else:
+            context_str += "No recent disease detections.\n\n"
+
+        system_instruction = (
+            "You are an expert Smart Hydroponic Agriculture Assistant. Answer the user's question "
+            "strictly using the provided agricultural knowledge, sensor observations, and YOLO detection history. "
+            "Clearly distinguish between general documented guidelines, measured sensor observations, and AI model predictions. "
+            "Include source citations and timestamps where applicable."
+        )
+
+        full_prompt = f"{context_str}\nUser Question: {user_message}"
+
+        response = self.gemini_client.models.generate_content(
+            model="gemini-3.1-flash-lite",
+>>>>>>> origin/main
             contents=[full_prompt],
             config=types.GenerateContentConfig(
                 system_instruction=system_instruction,
                 temperature=0.2,
+<<<<<<< HEAD
                 max_output_tokens=2048 if asks_for_disease_treatment else 1024
             )
         )
@@ -372,6 +444,12 @@ class ChatService:
         if not response.text or not response.text.strip():
             raise RuntimeError("The AI model returned an empty answer.")
 
+=======
+                max_output_tokens=1024
+            )
+        )
+
+>>>>>>> origin/main
         return {
             "session_id": session_id,
             "answer": response.text,
@@ -379,8 +457,12 @@ class ChatService:
                 {"document": c["document_name"], "chunk_index": c["chunk_index"]} for c in knowledge_chunks
             ],
             "sensor_snapshot": latest_sensor,
+<<<<<<< HEAD
             "sensor_readings": sensor_readings,
             "detection_snapshot": latest_detection,
             "detection_history": detection_history,
             "disease_detections": disease_detections,
+=======
+            "detection_snapshot": latest_detection
+>>>>>>> origin/main
         }
