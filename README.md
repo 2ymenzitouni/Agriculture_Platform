@@ -96,8 +96,10 @@ graph TD
    - Semantic text chunking and 768-dimensional vector embedding storage directly inside PostgreSQL using `pgvector`.
 
 5. **🤖 Context-Aware Agronomic Chatbot**:
-   - Combines semantic similarity search (`<=>` cosine distance) with **real-time plant sensor readings** and **latest disease detection events**.
-   - Gemini LLM synthesizes live hardware telemetry, diagnostic history, and official agronomic literature into actionable farming instructions.
+   - Uses semantic search (`<=>` cosine distance) over the authenticated user's knowledge-base documents and combines retrieved guidance with that user's sensor readings and disease detections.
+   - Answers are rendered with formatted headings, bold text, lists, and tables. Sensor questions can show the full readings history in a table.
+   - Disease-specific questions return source-grounded guidance; requests for detection images show the user's records, filtered to a named disease when specified.
+   - Chat generation uses `gemini-3.1-flash-lite`; query embeddings use `gemini-embedding-2`.
 
 6. **🔒 Security & Authentication**:
    - Secure registration and login with bcrypt password hashing and JWT (JSON Web Tokens).
@@ -487,48 +489,29 @@ Upload a leaf image to execute YOLOv8 inference, draw bounding boxes, and save d
 ### 6. AI Hydroponic Assistant (`/api/chat`)
 
 #### `POST /api/chat/`
-Submit a question to the conversational AI. The engine performs:
-1. Embedding of the query via Gemini (`gemini-embedding-001`).
-2. Vector similarity search (`pgvector`) against indexed knowledge base chunks.
-3. Live fetch of the user's latest IoT sensor readings (pH, TDS, water temp, level).
-4. Live fetch of the user's latest YOLO disease detection result.
-5. Contextual synthesis using Gemini (`gemini-3.1-flash-lite`).
+Submit a question to the authenticated user's conversational assistant. The endpoint retrieves relevant chunks from the user's knowledge base, then adds sensor data and disease detections when relevant. Chat generation uses `gemini-3.1-flash-lite`, with `gemini-embedding-2` used for query embeddings.
+
+Disease-treatment answers are organized into Markdown sections and only state treatment details supported by retrieved documents. Requests to see disease detection images return the authenticated user's detection records; when a disease is named, the image results are filtered to that disease. General detection-image requests return the full history. Sensor questions include the user's sensor history for tabular display.
 
 - **Request Body** (`application/json`):
   ```json
   {
-    "user_id": "e4b2d184-48f5-4d76-92cb-5079a4da9b37",
     "session_id": 1,
-    "message": "My lettuce leaves are starting to show slight browning and the pH is 6.1. What should I adjust?"
+    "message": "How do I treat Tomato Target Spot?"
   }
   ```
-- **Response** (`200 OK`):
+- **Authentication**: Required. The user is identified from the bearer token; do not send a `user_id` in the request body.
+- **Response** (`200 OK`): Includes the generated `answer`, document `sources_used`, sensor `sensor_snapshot` and `sensor_readings`, plus disease fields: `detection_snapshot`, `detection_history`, and `disease_detections`. Disease detection records include crop, predicted disease, confidence, image path, plant name, and detection timestamp.
   ```json
   {
     "session_id": 1,
-    "answer": "Based on your latest sensor readings (pH 6.1, TDS 720 ppm, Water Temp 20.8°C) and documented hydroponic guidelines for Lettuce...",
-    "sources_used": [
-      {
-        "document": "hydroponic_nutrient_management.pdf",
-        "chunk_index": 2
-      }
-    ],
-    "sensor_snapshot": {
-      "temperature": 23.4,
-      "humidity": 62.5,
-      "water_temperature": 20.8,
-      "water_level": 85.0,
-      "ph": 6.1,
-      "tds": 720.0,
-      "light": 14500.0,
-      "timestamp": "2026-10-13T18:10:00"
-    },
-    "detection_snapshot": {
-      "prediction": "Healthy",
-      "confidence": 0.98,
-      "image_path": "/static/detections/detected_healthy.jpg",
-      "detection_time": "2026-10-13T18:15:00"
-    }
+    "answer": "A Markdown-formatted, source-grounded answer.",
+    "sources_used": [],
+    "sensor_snapshot": {},
+    "sensor_readings": [],
+    "detection_snapshot": {},
+    "detection_history": [],
+    "disease_detections": []
   }
   ```
 
@@ -537,7 +520,7 @@ Submit a question to the conversational AI. The engine performs:
 ### 7. Knowledge Base & Document Ingestion (`/api/documents`)
 
 #### `POST /api/documents/documents/upload-ai`
-Upload a technical PDF or agronomy manual. The file is extracted using Gemini (`gemini-3.8-flash`), split into overlapping chunks, embedded via Gemini embeddings, and stored in PostgreSQL using `pgvector`.
+Upload a technical PDF or agronomy manual. The file is extracted using Gemini (`gemini-3.1-flash-lite`), split into overlapping chunks, embedded via Gemini embeddings, and stored in PostgreSQL using `pgvector`.
 - **Request Format**: `multipart/form-data`
 - **Form Fields**:
   - `user_id` (UUID, required): Owner of the document
@@ -594,19 +577,19 @@ curl -X POST http://localhost:8000/api/sensors/sensor-readings/ \
 # 6. Ask the AI assistant
 curl -X POST http://localhost:8000/api/chat/ \
   -H "Content-Type: application/json" \
-  -d '{"user_id":"YOUR_USER_ID","session_id":1,"message":"Is my pH and TDS optimal for cherry tomatoes?"}'
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -d '{"session_id":1,"message":"Is my pH and TDS optimal for cherry tomatoes?"}'
 ```
 
 ---
 
-## 🔌 Remaining Frontend Integrations
+## 🔌 Frontend Integrations
 
-The shared Axios client is configured in `client/src/services/app.js` and attaches the JWT from `localStorage`. Authentication, plant registration, IoT telemetry, and disease detection are connected. Remaining feature integrations:
+The shared Axios client is configured in `client/src/services/app.js` and attaches the JWT from `localStorage`. Authentication, plant registration, IoT telemetry, disease detection, and the AI chat page are connected. The chat page calls `/api/chat/` and displays formatted answers, sensor tables, and disease detection images when requested. The knowledge-base page connects to document upload:
 
-- Map `AI_Telemetry.jsx` to `/api/chat/`.
 - Map `Knowledge_Base.jsx` to `/api/documents/documents/upload-ai`.
-3. **CORS Configuration**:
-   The backend already allows requests from `http://localhost:5173` via `CORSMiddleware` in `backend/app/main.py`.
+
+The backend allows requests from `http://localhost:5173` via `CORSMiddleware` in `backend/app/main.py`.
 
 ---
 
@@ -617,7 +600,7 @@ The shared Axios client is configured in `client/src/services/app.js` and attach
 | **Frontend** | React 19, Vite 8, React Router v7, TailwindCSS v4 |
 | **Backend API** | FastAPI, Uvicorn, Pydantic v2, Python-Jose (JWT), Passlib (bcrypt) |
 | **Database & ORM** | PostgreSQL 16, pgvector, SQLAlchemy 2.0, asyncpg, psycopg |
-| **Artificial Intelligence** | Google Gemini SDK (`gemini-3.1-flash-lite`, `gemini-3.8-flash`, `gemini-embedding-001`), YOLOv8 (`ultralytics`), OpenCV |
+| **Artificial Intelligence** | Google Gemini SDK (`gemini-3.1-flash-lite`, `gemini-embedding-2`), YOLOv8 (`ultralytics`), OpenCV |
 | **Containerization** | Docker, Docker Compose |
 
 ---

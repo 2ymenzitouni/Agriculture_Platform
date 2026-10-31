@@ -74,8 +74,13 @@ def _call_with_retry(func):
 
 
 class DocumentExtractorService:
-    def __init__(self, db: Session):
+    def __init__(
+        self,
+        db: Session,
+        gemini_model: str = "gemini-3.1-flash-lite",
+    ):
         self.db = db
+        self.gemini_model = gemini_model
 
         api_key = os.getenv("GEMINI_API_KEY")
         if not api_key:
@@ -84,6 +89,25 @@ class DocumentExtractorService:
             )
 
         self.client = genai.Client(api_key=api_key)
+
+    def _extract_document_text(self, file_path: Path) -> str:
+        uploaded_file = _call_with_retry(
+            lambda: self.client.files.upload(file=str(file_path))
+        )
+        extraction_prompt = (
+            "Extract the key technical details, facts, "
+            "and relevant text from this document. "
+            "Preserve important values, units, headings, "
+            "and recommendations."
+        )
+        response = _call_with_retry(
+            lambda: self.client.models.generate_content(
+                model=self.gemini_model,
+                contents=[uploaded_file, extraction_prompt],
+            )
+        )
+
+        return response.text
 
     def process_and_extract_file(
         self,
@@ -130,20 +154,7 @@ class DocumentExtractorService:
             self.db.flush()
 
             # 3. Extract document content with Gemini.
-            extracted_text = _call_with_retry(
-                lambda: self.client.models.generate_content(
-                    model="gemini-3.8-flash",
-                    contents=[
-                        self.client.files.upload(file=str(file_path)),
-                        (
-                            "Extract the key technical details, facts, "
-                            "and relevant text from this document. "
-                            "Preserve important values, units, headings, "
-                            "and recommendations."
-                        ),
-                    ],
-                )
-            ).text
+            extracted_text = self._extract_document_text(file_path)
 
             if not extracted_text or not extracted_text.strip():
                 raise ValueError(
