@@ -74,7 +74,6 @@ def _call_with_retry(func):
 
 
 class DocumentExtractorService:
-<<<<<<< HEAD
     def __init__(
         self,
         db: Session,
@@ -82,10 +81,6 @@ class DocumentExtractorService:
     ):
         self.db = db
         self.gemini_model = gemini_model
-=======
-    def __init__(self, db: Session):
-        self.db = db
->>>>>>> origin/main
 
         api_key = os.getenv("GEMINI_API_KEY")
         if not api_key:
@@ -95,7 +90,6 @@ class DocumentExtractorService:
 
         self.client = genai.Client(api_key=api_key)
 
-<<<<<<< HEAD
     def _extract_document_text(self, file_path: Path) -> str:
         uploaded_file = _call_with_retry(
             lambda: self.client.files.upload(file=str(file_path))
@@ -115,8 +109,6 @@ class DocumentExtractorService:
 
         return response.text
 
-=======
->>>>>>> origin/main
     def process_and_extract_file(
         self,
         user_id: uuid.UUID,
@@ -162,24 +154,7 @@ class DocumentExtractorService:
             self.db.flush()
 
             # 3. Extract document content with Gemini.
-<<<<<<< HEAD
             extracted_text = self._extract_document_text(file_path)
-=======
-            extracted_text = _call_with_retry(
-                lambda: self.client.models.generate_content(
-                    model="gemini-3.8-flash",
-                    contents=[
-                        self.client.files.upload(file=str(file_path)),
-                        (
-                            "Extract the key technical details, facts, "
-                            "and relevant text from this document. "
-                            "Preserve important values, units, headings, "
-                            "and recommendations."
-                        ),
-                    ],
-                )
-            ).text
->>>>>>> origin/main
 
             if not extracted_text or not extracted_text.strip():
                 raise ValueError(

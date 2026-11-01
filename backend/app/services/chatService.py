@@ -1,14 +1,10 @@
-<<<<<<< HEAD
 import re
 from uuid import UUID
 
-=======
->>>>>>> origin/main
 import asyncpg
 from google import genai
 from google.genai import types
 
-<<<<<<< HEAD
 EMBEDDING_MODEL = "gemini-embedding-2"
 DETECTION_REQUEST_STOP_WORDS = {
     "a", "all", "and", "can", "called", "detection", "detections", "disease",
@@ -36,6 +32,34 @@ def _contains_token_sequence(tokens: list[str], sequence: list[str]) -> bool:
         tokens[index:index + len(sequence)] == sequence
         for index in range(len(tokens) - len(sequence) + 1)
     )
+
+
+def _is_today_word(word: str) -> bool:
+    if word == "today":
+        return True
+    if not 4 <= len(word) <= 6:
+        return False
+
+    left = right = edits = 0
+    while left < len(word) and right < len("today"):
+        if word[left] == "today"[right]:
+            left += 1
+            right += 1
+            continue
+
+        edits += 1
+        if edits > 1:
+            return False
+        if len(word) > len("today"):
+            left += 1
+        elif len(word) < len("today"):
+            right += 1
+        else:
+            left += 1
+            right += 1
+
+    edits += (len(word) - left) + (len("today") - right)
+    return edits <= 1
 
 
 def filter_disease_detections(
@@ -91,47 +115,52 @@ class ChatService:
     async def get_sensor_readings(self, user_id: UUID) -> list[dict]:
         async with self.db_pool.acquire() as conn:
             rows = await conn.fetch(
-=======
-class ChatService:
-    def __init__(self, db_pool: asyncpg.Pool, gemini_api_key: str):
-        self.db_pool = db_pool
-        self.gemini_client = genai.Client(api_key=gemini_api_key)
-
-    async def _get_embedding(self, text: str) -> list[float]:
-        """Generates a vector embedding for the user query using Gemini."""
-        response = self.gemini_client.models.embed_content(
-            model="gemini-embedding-001",
-            contents=text,
-            config=types.EmbedContentConfig(output_dimensionality=768)
-        )
-        return response.embeddings[0].values
-
-    async def get_latest_sensor_reading(self, user_id: str) -> dict:
-        async with self.db_pool.acquire() as conn:
-            row = await conn.fetchrow(
->>>>>>> origin/main
                 """
                 SELECT temperature, humidity, water_temperature, water_level, ph, tds, light, recorded_at as timestamp
                 FROM sensor_readings sr
                 JOIN plants p ON sr.plant_id = p.id
                 WHERE p.user_id = $1
                 ORDER BY sr.recorded_at DESC
-<<<<<<< HEAD
                 """,
                 user_id
             )
             return [dict(row) for row in rows]
 
-    async def get_latest_disease_detection(self, user_id: UUID) -> dict:
-=======
-                LIMIT 1;
+    async def get_sensor_readings_for_today(self, user_id: UUID) -> list[dict]:
+        async with self.db_pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT temperature, humidity, water_temperature, water_level, ph, tds, light,
+                       recorded_at as timestamp
+                FROM sensor_readings sr
+                JOIN plants p ON sr.plant_id = p.id
+                WHERE p.user_id = $1
+                  AND sr.recorded_at >= CURRENT_DATE
+                  AND sr.recorded_at < CURRENT_DATE + INTERVAL '1 day'
+                ORDER BY sr.recorded_at DESC
                 """,
-                user_id
+                user_id,
+            )
+            return [dict(row) for row in rows]
+
+    async def get_latest_sensor_reading_before_today(self, user_id: UUID) -> dict:
+        async with self.db_pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT temperature, humidity, water_temperature, water_level, ph, tds, light,
+                       recorded_at as timestamp
+                FROM sensor_readings sr
+                JOIN plants p ON sr.plant_id = p.id
+                WHERE p.user_id = $1
+                  AND sr.recorded_at < CURRENT_DATE
+                ORDER BY sr.recorded_at DESC
+                LIMIT 1
+                """,
+                user_id,
             )
             return dict(row) if row else {}
 
-    async def get_latest_disease_detection(self, user_id: str) -> dict:
->>>>>>> origin/main
+    async def get_latest_disease_detection(self, user_id: UUID) -> dict:
         async with self.db_pool.acquire() as conn:
             row = await conn.fetchrow(
                 """
@@ -146,7 +175,41 @@ class ChatService:
             )
             return dict(row) if row else {}
 
-<<<<<<< HEAD
+    async def get_disease_detections_for_today(self, user_id: UUID) -> list[dict]:
+        async with self.db_pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT dd.id::text as id, dd.crop, dd.disease as prediction,
+                       dd.confidence, dd.image_path,
+                       dd.detected_at as detection_time, p.name as plant_name
+                FROM disease_detections dd
+                JOIN plants p ON dd.plant_id = p.id
+                WHERE p.user_id = $1
+                  AND dd.detected_at >= CURRENT_DATE
+                  AND dd.detected_at < CURRENT_DATE + INTERVAL '1 day'
+                ORDER BY dd.detected_at DESC
+                """,
+                user_id,
+            )
+            return [dict(row) for row in rows]
+
+    async def get_latest_disease_detection_before_today(self, user_id: UUID) -> dict:
+        async with self.db_pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT dd.disease as prediction, dd.confidence, dd.image_path,
+                       dd.detected_at as detection_time
+                FROM disease_detections dd
+                JOIN plants p ON dd.plant_id = p.id
+                WHERE p.user_id = $1
+                  AND dd.detected_at < CURRENT_DATE
+                ORDER BY dd.detected_at DESC
+                LIMIT 1
+                """,
+                user_id,
+            )
+            return dict(row) if row else {}
+
     async def get_disease_detections(self, user_id: UUID) -> list[dict]:
         async with self.db_pool.acquire() as conn:
             rows = await conn.fetch(
@@ -187,10 +250,6 @@ class ChatService:
         limit: int = 3,
     ) -> list[dict]:
         """Searches this user's document chunks by vector similarity."""
-=======
-    async def search_knowledge_base(self, query_embedding: list[float], limit: int = 3) -> list[dict]:
-        """Performs vector similarity search, joining document_chunks with documents to get the filename."""
->>>>>>> origin/main
         async with self.db_pool.acquire() as conn:
             rows = await conn.fetch(
                 """
@@ -198,7 +257,6 @@ class ChatService:
                        (c.embedding <=> $1::vector) as distance
                 FROM document_chunks c
                 JOIN documents d ON c.document_id = d.id
-<<<<<<< HEAD
                 WHERE d.user_id = $2
                 ORDER BY distance ASC
                 LIMIT $3;
@@ -217,7 +275,7 @@ class ChatService:
         if not question:
             raise ValueError("Please enter a question.")
 
-        normalized_question = question.casefold()
+        normalized_question = re.sub(r"[_-]+", " ", question.casefold())
         asks_for_current_sensor = bool(
             re.search(
                 r"\b(?:current|latest|my)\s+(?:current\s+)?"
@@ -231,6 +289,25 @@ class ChatService:
                     r"\b(?:ph|tds|sensor|temperature|humidity|light|water)\b",
                     normalized_question,
                 )
+            )
+        )
+        mentions_today = any(
+            _is_today_word(word)
+            for word in re.findall(r"[a-z]+", normalized_question)
+        )
+        asks_for_sensor_today = bool(
+            mentions_today
+            and re.search(
+                r"\b(sensor|readings?|measurements?|ph|tds|humidity|light|water\s+level|"
+                r"(?:air|water)\s+temperature)\b",
+                normalized_question,
+            )
+        )
+        asks_for_detections_today = bool(
+            mentions_today
+            and re.search(
+                r"\b(detect\w*|diagnos\w*|image|photo|picture|history|record\w*|found|seen)\b",
+                normalized_question,
             )
         )
         asks_for_yesterdays_detection = "yesterday" in normalized_question
@@ -268,7 +345,12 @@ class ChatService:
         )
 
         knowledge_chunks = []
-        if not asks_for_current_sensor and not asks_for_yesterdays_detection:
+        if not (
+            asks_for_current_sensor
+            or asks_for_sensor_today
+            or asks_for_detections_today
+            or asks_for_yesterdays_detection
+        ):
             query_embedding = await self._get_embedding(question)
             knowledge_chunks = await self.search_knowledge_base(
                 query_embedding,
@@ -276,14 +358,28 @@ class ChatService:
                 limit=3,
             )
 
-        sensor_readings = await self.get_sensor_readings(user_id)
+        sensor_readings = (
+            []
+            if asks_for_sensor_today or asks_for_detections_today
+            else await self.get_sensor_readings(user_id)
+        )
         latest_sensor = sensor_readings[0] if sensor_readings else {}
+        sensor_readings_today = (
+            await self.get_sensor_readings_for_today(user_id)
+            if asks_for_sensor_today
+            else []
+        )
+        if asks_for_sensor_today and not sensor_readings_today:
+            latest_sensor_before_today = await self.get_latest_sensor_reading_before_today(user_id)
+        else:
+            latest_sensor_before_today = {}
         latest_detection = (
             await self.get_latest_disease_detection(user_id)
             if not (
                 asks_for_yesterdays_detection
                 or asks_for_disease_guidance
                 or asks_for_detection_history
+                or asks_for_sensor_today
             )
             else {}
         )
@@ -294,11 +390,22 @@ class ChatService:
         )
         disease_detections = (
             await self.get_disease_detections(user_id)
-            if asks_for_detection_history
+            if asks_for_detection_history and not asks_for_detections_today
             else []
         )
+        disease_detections_today = (
+            await self.get_disease_detections_for_today(user_id)
+            if asks_for_detections_today
+            else []
+        )
+        if asks_for_detections_today and not disease_detections_today:
+            latest_detection_before_today = (
+                await self.get_latest_disease_detection_before_today(user_id)
+            )
+        else:
+            latest_detection_before_today = {}
         has_disease_filter = False
-        if asks_for_detection_history:
+        if asks_for_detection_history and not asks_for_detections_today:
             disease_detections, has_disease_filter = filter_disease_detections(
                 question,
                 disease_detections,
@@ -307,41 +414,79 @@ class ChatService:
             latest_detection = disease_detections[0]
         elif asks_for_detection_history:
             latest_detection = {}
-=======
-                ORDER BY distance ASC
-                LIMIT $2;
-                """,
-                str(query_embedding), limit
-            )
-            return [dict(row) for row in rows]
-
-    async def process_chat_turn(self, user_id: str, session_id: int, user_message: str) -> dict:
-        query_embedding = await self._get_embedding(user_message)
-
-        knowledge_chunks = await self.search_knowledge_base(query_embedding, limit=3)
-        latest_sensor = await self.get_latest_sensor_reading(user_id)
-        latest_detection = await self.get_latest_disease_detection(user_id)
->>>>>>> origin/main
-
         context_str = "--- AGRICULTURAL KNOWLEDGE CHUNKS ---\n"
         for chunk in knowledge_chunks:
             context_str += f"Source: {chunk['document_name']} (Chunk Index: {chunk['chunk_index']})\n{chunk['content']}\n\n"
 
-        context_str += "--- LATEST SENSOR READINGS ---\n"
-        if latest_sensor:
-            context_str += f"Timestamp: {latest_sensor.get('timestamp')}\n" \
-                           f"pH: {latest_sensor.get('ph')}, TDS: {latest_sensor.get('tds')} ppm, " \
-                           f"Water Temp: {latest_sensor.get('water_temperature')}°C, Water Level: {latest_sensor.get('water_level')}%\n\n"
-        else:
-            context_str += "No recent sensor data available.\n\n"
+        if asks_for_sensor_today:
+            context_str += "--- SENSOR READINGS RECORDED TODAY ---\n"
+            if sensor_readings_today:
+                for reading in sensor_readings_today:
+                    context_str += (
+                        f"Recorded at: {reading.get('timestamp')}; "
+                        f"pH: {reading.get('ph')}, TDS: {reading.get('tds')} ppm, "
+                        f"Air temperature: {reading.get('temperature')}°C, "
+                        f"Humidity: {reading.get('humidity')}%, "
+                        f"Water temperature: {reading.get('water_temperature')}°C, "
+                        f"Water level: {reading.get('water_level')}%, "
+                        f"Light: {reading.get('light')}\n"
+                    )
+            else:
+                context_str += "No sensor readings were recorded today.\n"
+                if latest_sensor_before_today:
+                    context_str += (
+                        f"The latest available sensor reading before today was recorded at "
+                        f"{latest_sensor_before_today.get('timestamp')}: "
+                        f"pH {latest_sensor_before_today.get('ph')}, "
+                        f"TDS {latest_sensor_before_today.get('tds')} ppm, "
+                        f"air temperature {latest_sensor_before_today.get('temperature')}°C, "
+                        f"humidity {latest_sensor_before_today.get('humidity')}%, "
+                        f"water temperature {latest_sensor_before_today.get('water_temperature')}°C, "
+                        f"water level {latest_sensor_before_today.get('water_level')}%, "
+                        f"light {latest_sensor_before_today.get('light')}.\n"
+                    )
+                else:
+                    context_str += "No earlier sensor readings are available.\n"
 
-        context_str += "--- LATEST YOLO DISEASE DETECTION ---\n"
-        if latest_detection:
-            context_str += f"Time: {latest_detection.get('detection_time')}\n" \
-                           f"Prediction: {latest_detection.get('prediction')} (Confidence: {latest_detection.get('confidence')})\n\n"
-<<<<<<< HEAD
-        elif not (asks_for_yesterdays_detection or asks_for_detection_history):
-            context_str += "No recent disease detections.\n\n"
+        if asks_for_detections_today:
+            context_str += "--- DISEASE DETECTIONS RECORDED TODAY ---\n"
+            if disease_detections_today:
+                for detection in disease_detections_today:
+                    context_str += (
+                        f"Detected at: {detection.get('detection_time')}; "
+                        f"plant: {detection.get('plant_name')}; "
+                        f"crop: {detection.get('crop')}; "
+                        f"prediction: {detection.get('prediction')}; "
+                        f"confidence: {detection.get('confidence')}\n"
+                    )
+            else:
+                context_str += "No disease detections were recorded today.\n"
+                if latest_detection_before_today:
+                    context_str += (
+                        f"The latest earlier disease detection was detected at "
+                        f"{latest_detection_before_today.get('detection_time')}: "
+                        f"{latest_detection_before_today.get('prediction')} "
+                        f"(confidence {latest_detection_before_today.get('confidence')}).\n"
+                    )
+                else:
+                    context_str += "No earlier disease detections are available.\n"
+
+        if not (asks_for_sensor_today or asks_for_detections_today):
+            context_str += "--- LATEST SENSOR READINGS ---\n"
+            if latest_sensor:
+                context_str += f"Timestamp: {latest_sensor.get('timestamp')}\n" \
+                               f"pH: {latest_sensor.get('ph')}, TDS: {latest_sensor.get('tds')} ppm, " \
+                               f"Water Temp: {latest_sensor.get('water_temperature')}°C, Water Level: {latest_sensor.get('water_level')}%\n\n"
+            else:
+                context_str += "No recent sensor data available.\n\n"
+
+        if not (asks_for_sensor_today or asks_for_detections_today):
+            context_str += "--- LATEST YOLO DISEASE DETECTION ---\n"
+            if latest_detection:
+                context_str += f"Time: {latest_detection.get('detection_time')}\n" \
+                               f"Prediction: {latest_detection.get('prediction')} (Confidence: {latest_detection.get('confidence')})\n\n"
+            elif not (asks_for_yesterdays_detection or asks_for_detection_history):
+                context_str += "No recent disease detections.\n\n"
 
         if asks_for_yesterdays_detection:
             context_str += "--- DISEASE DETECTIONS FROM YESTERDAY ---\n"
@@ -355,7 +500,7 @@ class ChatService:
             else:
                 context_str += "No disease detections were recorded yesterday.\n\n"
 
-        if asks_for_detection_history:
+        if asks_for_detection_history and not asks_for_detections_today:
             context_str += "--- USER'S MATCHING DISEASE DETECTIONS ---\n"
             if disease_detections:
                 for detection in disease_detections[:20]:
@@ -379,13 +524,30 @@ class ChatService:
                 )
 
         system_instruction = (
-            "You are an expert smart agriculture assistant. Answer the user's question using the "
-            "provided retrieved agricultural knowledge, database sensor readings, and disease "
-            "detection records. Do not invent measurements or detections. If the needed database "
-            "or knowledge-base information is missing, say so clearly. Distinguish documented "
-            "guidance from measured readings and model predictions. For symptoms, provide possible "
-            "explanations rather than claiming a definitive diagnosis. Cite source document names "
-            "and include timestamps where available."
+            "You are an expert smart agriculture assistant focused on tomato cultivation, sensor "
+            "data, and disease management. Answer using the provided retrieved agricultural "
+            "knowledge, database sensor readings, and disease detection records. Do not invent "
+            "measurements or detections. Distinguish documented guidance from measured readings and "
+            "model predictions. For symptoms, provide possible explanations rather than claiming "
+            "a definitive diagnosis. Cite source document names and include timestamps where "
+            "available.\n\n"
+            "For any question asking about today's records, use only records explicitly labeled "
+            "as recorded today to answer for today. If there are none, state that no such records "
+            "were recorded today and, when provided, give the timestamp and details of the latest "
+            "earlier record. Never present an earlier record as today's data.\n\n"
+            "Scope and missing-information policy: First determine whether the user's specific "
+            "question is about agriculture or can be answered by the supplied farm data or "
+            "knowledge. If it is unrelated to agriculture, or asks for information that is not "
+            "actually available in the supplied context (for example, live local weather), do not "
+            "answer from general knowledge and do not list unrelated sensor readings, detections, "
+            "or documents. Instead, respond with a brief, natural message tailored to the exact "
+            "question: acknowledge what they asked, clearly state that you do not have that "
+            "information or that it is outside your role, identify yourself in context as an expert "
+            "smart agriculture assistant focused on tomato cultivation, sensor data, and disease "
+            "management, and offer a relevant agriculture question you can help with. Vary the "
+            "wording naturally to fit each question; do not repeat one fixed fallback sentence. "
+            "If part of an in-scope question is answerable, answer only that supported part and "
+            "clearly identify what information is missing."
         )
         if asks_for_disease_guidance:
             system_instruction += (
@@ -416,27 +578,10 @@ class ChatService:
 
         response = self.gemini_client.models.generate_content(
             model=self.gemini_model,
-=======
-        else:
-            context_str += "No recent disease detections.\n\n"
-
-        system_instruction = (
-            "You are an expert Smart Hydroponic Agriculture Assistant. Answer the user's question "
-            "strictly using the provided agricultural knowledge, sensor observations, and YOLO detection history. "
-            "Clearly distinguish between general documented guidelines, measured sensor observations, and AI model predictions. "
-            "Include source citations and timestamps where applicable."
-        )
-
-        full_prompt = f"{context_str}\nUser Question: {user_message}"
-
-        response = self.gemini_client.models.generate_content(
-            model="gemini-3.1-flash-lite",
->>>>>>> origin/main
             contents=[full_prompt],
             config=types.GenerateContentConfig(
                 system_instruction=system_instruction,
                 temperature=0.2,
-<<<<<<< HEAD
                 max_output_tokens=2048 if asks_for_disease_treatment else 1024
             )
         )
@@ -444,25 +589,33 @@ class ChatService:
         if not response.text or not response.text.strip():
             raise RuntimeError("The AI model returned an empty answer.")
 
-=======
-                max_output_tokens=1024
-            )
-        )
-
->>>>>>> origin/main
         return {
             "session_id": session_id,
             "answer": response.text,
             "sources_used": [
                 {"document": c["document_name"], "chunk_index": c["chunk_index"]} for c in knowledge_chunks
             ],
-            "sensor_snapshot": latest_sensor,
-<<<<<<< HEAD
-            "sensor_readings": sensor_readings,
-            "detection_snapshot": latest_detection,
+            "sensor_snapshot": (
+                sensor_readings_today[0]
+                if asks_for_sensor_today and sensor_readings_today
+                else {}
+                if asks_for_sensor_today or asks_for_detections_today
+                else latest_sensor
+            ),
+            "sensor_readings": (
+                sensor_readings_today if asks_for_sensor_today else sensor_readings
+            ),
+            "detection_snapshot": (
+                disease_detections_today[0]
+                if asks_for_detections_today and disease_detections_today
+                else {}
+                if asks_for_sensor_today or asks_for_detections_today
+                else latest_detection
+            ),
             "detection_history": detection_history,
-            "disease_detections": disease_detections,
-=======
-            "detection_snapshot": latest_detection
->>>>>>> origin/main
+            "disease_detections": (
+                disease_detections_today
+                if asks_for_detections_today
+                else disease_detections
+            ),
         }

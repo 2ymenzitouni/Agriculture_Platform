@@ -10,10 +10,6 @@ from app.models.usersModel import User
 from app.services.documentService import DocumentService
 
 router = APIRouter(prefix="/documents", tags=["Documents & Chunks"])
-<<<<<<< HEAD
-GEMINI_MODEL = "choose-your-gemini-model-here"  # Replace with your actual Gemini model
-=======
->>>>>>> origin/main
 
 @router.get("/mine", response_model=List[DocumentResponse])
 def get_my_documents(
@@ -33,11 +29,7 @@ def upload_and_extract_with_ai(
     Upload a document, process it using the Gemini utility function, 
     chunk the output, and store it in PostgreSQL.
     """
-<<<<<<< HEAD
-    service = DocumentExtractorService(db, gemini_model=GEMINI_MODEL)
-=======
     service = DocumentExtractorService(db)
->>>>>>> origin/main
     return service.process_and_extract_file(current_user.id, file)
 
 

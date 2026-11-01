@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+}
+
 @theme {
   --color-inverse-surface: #213145;
   --color-surface-variant: #d3e4fe;
