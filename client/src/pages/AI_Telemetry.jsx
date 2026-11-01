@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import { useEffect, useRef, useState } from 'react';
 import LogoutButton from '../components/LogoutButton';
 import API from '../services/app';
@@ -305,11 +304,6 @@ export default function AI_Telemetry() {
     }
   }
 
-=======
-import LogoutButton from '../components/LogoutButton';
-
-export default function AI_Telemetry() {
->>>>>>> origin/main
   return (
     <div className="w-full min-h-screen bg-background text-on-surface flex flex-col overflow-x-hidden">
       
@@ -757,8 +751,6 @@ export default function AI_Telemetry() {
                 </div>
               </div>
             </div>
-<<<<<<< HEAD
-
             {chatMessages.map((chatMessage, index) => (
               chatMessage.role === 'user' ? (
                 <div className="flex justify-end gap-3 max-w-4xl ml-auto" key={`user-${index}`}>
@@ -781,7 +773,7 @@ export default function AI_Telemetry() {
                     <span className="material-symbols-outlined text-[20px]">smart_toy</span>
                   </div>
                   <div className="bg-surface-container-lowest border border-outline-variant/40 rounded-2xl rounded-tl-xs p-5 shadow-sm space-y-3 flex-1">
-                    {chatMessage.sensorMetrics.length > 0 && (
+                    {chatMessage.sensorMetrics.length > 0 && chatMessage.sensorReadings.length > 0 && (
                       <div className="overflow-x-auto rounded-xl border border-outline-variant/40">
                         <table className="w-full min-w-max border-collapse text-left text-label-sm font-label-sm">
                           <caption className="bg-surface-container-low px-3 py-2 text-left font-semibold text-on-surface">
@@ -815,16 +807,6 @@ export default function AI_Telemetry() {
                                 </td>
                               </tr>
                             ))}
-                            {chatMessage.sensorReadings.length === 0 && (
-                              <tr className="border-t border-outline-variant/30">
-                                <td
-                                  className="px-3 py-3 text-on-surface-variant"
-                                  colSpan={chatMessage.sensorMetrics.length + 1}
-                                >
-                                  No sensor readings found.
-                                </td>
-                              </tr>
-                            )}
                           </tbody>
                         </table>
                       </div>
@@ -911,23 +893,16 @@ export default function AI_Telemetry() {
               </p>
             )}
             <div ref={chatEndRef} />
-=======
->>>>>>> origin/main
           </div>
 
           {/* Chat Input Footer */}
           <footer className="p-4 bg-surface-container-lowest border-t border-outline-variant/30 shrink-0">
             <div className="max-w-5xl mx-auto space-y-2">
-<<<<<<< HEAD
               <form className="relative bg-surface-container-low border border-outline-variant/40 rounded-xl p-2 flex items-center gap-2 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 transition-all shadow-sm" onSubmit={handleSubmit}>
-=======
-              <div className="relative bg-surface-container-low border border-outline-variant/40 rounded-xl p-2 flex items-center gap-2 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 transition-all shadow-sm">
->>>>>>> origin/main
                 <button className="p-2 rounded-lg text-outline hover:text-on-surface hover:bg-surface-container transition-colors shrink-0" title="Attach telemetry dump, sensor log, or CSV">
                   <span className="material-symbols-outlined text-[20px]">attach_file</span>
                 </button>
 
-<<<<<<< HEAD
                 <input
                   className="w-full bg-transparent border-0 focus:ring-0 text-body-md font-body-md text-on-surface placeholder:text-outline/70 focus:outline-none"
                   onChange={(event) => setMessage(event.target.value)}
@@ -935,25 +910,15 @@ export default function AI_Telemetry() {
                   type="text"
                   value={message}
                 />
-=======
-                <input className="w-full bg-transparent border-0 focus:ring-0 text-body-md font-body-md text-on-surface placeholder:text-outline/70 focus:outline-none" placeholder="Ask AeroSense AI diagnostic questions, run sensor tests, or trigger automated commands..." type="text" />
->>>>>>> origin/main
 
                 <button className="p-2 rounded-lg text-outline hover:text-primary hover:bg-surface-container transition-colors shrink-0" title="Voice Telemetry Input">
                   <span className="material-symbols-outlined text-[20px]">mic</span>
                 </button>
 
-<<<<<<< HEAD
                 <button className="w-10 h-10 rounded-lg bg-primary text-on-primary flex items-center justify-center hover:bg-primary/90 transition-all shrink-0 shadow-sm active:scale-95 disabled:opacity-50" disabled={isSending || !message.trim()} title="Send message" type="submit">
                   <span className="material-symbols-outlined text-[20px]">send</span>
                 </button>
               </form>
-=======
-                <button className="w-10 h-10 rounded-lg bg-primary text-on-primary flex items-center justify-center hover:bg-primary/90 transition-all shrink-0 shadow-sm active:scale-95" title="Send message">
-                  <span className="material-symbols-outlined text-[20px]">send</span>
-                </button>
-              </div>
->>>>>>> origin/main
 
               <div className="flex items-center justify-between px-1 text-label-sm font-label-sm text-outline">
                 <div className="flex items-center gap-1.5">
