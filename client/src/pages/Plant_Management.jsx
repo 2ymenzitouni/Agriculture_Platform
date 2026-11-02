@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import LogoutButton from '../components/LogoutButton';
 import API from '../services/app';
 
@@ -136,7 +137,7 @@ export default function Plant_Management() {
   return (
     <div className="w-full">
       <aside className="fixed top-0 left-0 h-screen w-[68px] z-40 bg-surface-container-lowest border-r border-outline-variant/30 shadow-sm flex flex-col justify-between items-center py-5">
-        <div className="flex flex-col items-center gap-1 group cursor-pointer" title="AeroSense IoT - Telemetry v2.4">
+        <div className="flex flex-col items-center gap-1 group cursor-pointer" title="SmartPlant IoT - Telemetry v2.4">
           <div className="w-10 h-10 rounded-xl bg-primary text-on-primary flex items-center justify-center font-headline-md font-bold shadow-md shadow-primary/20 transition-all duration-200 active:scale-95 invisible">
             <span className="invisible material-symbols-outlined text-[22px]">eco</span>
           </div>
@@ -144,33 +145,30 @@ export default function Plant_Management() {
         </div>
 
         <nav aria-label="System Navigation" className="flex flex-col items-center gap-2.5 w-full px-2">
-          <button className="flex items-center justify-center w-11 h-11 rounded-xl text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-200 active:scale-95" title="Dashboard" type="button">
+          <Link className="flex items-center justify-center w-11 h-11 rounded-xl text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-200 active:scale-95" to="/" title="Dashboard">
             <span className="material-symbols-outlined">dashboard</span>
-          </button>
-          <button className="flex items-center justify-center w-11 h-11 rounded-xl text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-200 active:scale-95" title="Media Analysis" type="button">
+          </Link>
+          <Link className="flex items-center justify-center w-11 h-11 rounded-xl text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-200 active:scale-95" to="/image-analysis" title="Media Analysis">
             <span className="material-symbols-outlined">perm_media</span>
-          </button>
-          <button className="flex items-center justify-center w-11 h-11 rounded-xl text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-200 active:scale-95 relative" title="File Ingestion" type="button"><span className="material-symbols-outlined">upload_file</span></button>
+          </Link>
+          <Link className="flex items-center justify-center w-11 h-11 rounded-xl text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-200 active:scale-95 relative" to="/knowledge-base" title="File Ingestion"><span className="material-symbols-outlined">upload_file</span></Link>
 
-          <button aria-current="page" className="flex items-center justify-center w-11 h-11 rounded-xl bg-surface-container text-primary transition-colors duration-200 active:scale-95 relative" title="Plant Registry & Crop Systems" type="button">
+          <Link aria-current="page" className="flex items-center justify-center w-11 h-11 rounded-xl bg-surface-container text-primary transition-colors duration-200 active:scale-95 relative" to="/plants" title="Plant Registry & Crop Systems">
             <span className="material-symbols-outlined font-bold">potted_plant</span>
             <span className="absolute right-1 top-1.5 w-1.5 h-1.5 rounded-full bg-primary ring-2 ring-surface-container-lowest"></span>
-          </button>
-          <button className="flex items-center justify-center w-11 h-11 rounded-xl text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-200 active:scale-95" title="AI Assistant" type="button">
+          </Link>
+          <Link className="flex items-center justify-center w-11 h-11 rounded-xl text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-200 active:scale-95" to="/ai-chat" title="AI Assistant">
             <span className="material-symbols-outlined">smart_toy</span>
-          </button>
-          <button className="flex items-center justify-center w-11 h-11 rounded-xl text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-200 active:scale-95" title="Telemetry Simulator" type="button">
+          </Link>
+          <Link className="flex items-center justify-center w-11 h-11 rounded-xl text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-200 active:scale-95" to="/iot-simulator" title="Telemetry Simulator">
             <span className="material-symbols-outlined">tune</span>
-          </button>
-          <button className="flex items-center justify-center w-11 h-11 rounded-xl text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-200 active:scale-95" title="Devices" type="button">
+          </Link>
+          <Link className="flex items-center justify-center w-11 h-11 rounded-xl text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-200 active:scale-95" to="/iot-simulator" title="Devices">
             <span className="material-symbols-outlined">sensors</span>
-          </button>
+          </Link>
         </nav>
 
         <div className="flex flex-col items-center gap-2 w-full px-2">
-          <button className="flex items-center justify-center w-11 h-11 rounded-xl text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors duration-200 active:scale-95" title="Settings" type="button">
-            <span className="material-symbols-outlined">settings</span>
-          </button>
           <LogoutButton className="flex items-center justify-center w-11 h-11 rounded-xl text-outline hover:text-error hover:bg-error-container/20 transition-colors duration-200 active:scale-95" title="Logout" aria-label="Logout">
             <span className="material-symbols-outlined">logout</span>
           </LogoutButton>
@@ -181,7 +179,7 @@ export default function Plant_Management() {
         {/* <header className="sticky top-0 z-30 bg-surface-container-lowest/90 backdrop-blur-md border-b border-outline-variant/30 px-8 py-3.5 flex items-center justify-between shadow-sm">
           <div className="flex items-center gap-3">
             <div className="flex flex-col">
-              <span className="font-headline-md text-headline-md font-bold tracking-tight text-on-surface leading-none">AeroSense</span>
+              <span className="font-headline-md text-headline-md font-bold tracking-tight text-on-surface leading-none">SmartPlant</span>
               <span className="font-label-caps text-label-caps text-primary tracking-widest leading-tight uppercase font-bold">Telemetry</span>
             </div>
             <div className="h-6 w-px bg-outline-variant/40 ml-2 hidden sm:block"></div>
@@ -228,7 +226,7 @@ export default function Plant_Management() {
           <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
             <div>
               <div className="flex items-center gap-2 text-outline font-label-md text-label-md mb-1.5">
-                <span>AeroSense IoT</span>
+                <span>SmartPlant IoT</span>
                 <span className="material-symbols-outlined text-[14px]">chevron_right</span>
                 <span>Agriculture Grid</span>
                 <span className="material-symbols-outlined text-[14px]">chevron_right</span>

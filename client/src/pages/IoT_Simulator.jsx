@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import LogoutButton from '../components/LogoutButton';
 import API from '../services/app';
 
@@ -189,43 +190,40 @@ export default function IoT_Simulator() {
     <div className="w-full">
       <aside className="fixed top-0 left-0 h-full w-[68px] z-40 bg-surface-container-lowest dark:bg-inverse-surface border-r border-outline-variant/30 dark:border-outline/20 shadow-sm flex flex-col justify-between items-center py-5">
         <div className="flex flex-col items-center gap-1">
-          <div className="invisible w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-on-primary shadow-sm" title="AeroSense IoT - Telemetry v2.4">
+          <div className="invisible w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-on-primary shadow-sm" title="SmartPlant IoT - Telemetry v2.4">
             <span className="material-symbols-outlined text-xl" data-icon="sensors">sensors</span>
           </div>
         </div>
 
         <nav className="flex flex-col gap-3">
-          <a className="flex items-center justify-center w-11 h-11 rounded-xl text-outline dark:text-outline-variant hover:text-on-surface dark:hover:text-inverse-on-surface hover:bg-surface-container-low dark:hover:bg-surface-container transition-all duration-200 active:scale-95" href="#" title="Dashboard">
+          <Link className="flex items-center justify-center w-11 h-11 rounded-xl text-outline dark:text-outline-variant hover:text-on-surface dark:hover:text-inverse-on-surface hover:bg-surface-container-low dark:hover:bg-surface-container transition-all duration-200 active:scale-95" to="/" title="Dashboard">
             <span className="material-symbols-outlined" data-icon="dashboard">dashboard</span>
-          </a>
+          </Link>
 
-          <a className="flex items-center justify-center w-11 h-11 rounded-xl text-outline dark:text-outline-variant hover:text-on-surface dark:hover:text-inverse-on-surface hover:bg-surface-container-low dark:hover:bg-surface-container transition-all duration-200 active:scale-95" href="#" title="Media Analysis">
+          <Link className="flex items-center justify-center w-11 h-11 rounded-xl text-outline dark:text-outline-variant hover:text-on-surface dark:hover:text-inverse-on-surface hover:bg-surface-container-low dark:hover:bg-surface-container transition-all duration-200 active:scale-95" to="/image-analysis" title="Media Analysis">
             <span className="material-symbols-outlined" data-icon="perm_media">perm_media</span>
-          </a>
-          <a className="flex items-center justify-center w-11 h-11 rounded-xl text-outline dark:text-outline-variant hover:text-on-surface dark:hover:text-inverse-on-surface hover:bg-surface-container-low dark:hover:bg-surface-container transition-all duration-200 active:scale-95" href="#" title="File Ingestion">
+          </Link>
+          <Link className="flex items-center justify-center w-11 h-11 rounded-xl text-outline dark:text-outline-variant hover:text-on-surface dark:hover:text-inverse-on-surface hover:bg-surface-container-low dark:hover:bg-surface-container transition-all duration-200 active:scale-95" to="/knowledge-base" title="File Ingestion">
             <span className="material-symbols-outlined" data-icon="upload_file">upload_file</span>
-          </a>
-          <button className="flex items-center justify-center w-11 h-11 rounded-xl text-outline dark:text-outline-variant hover:text-on-surface dark:hover:text-inverse-on-surface hover:bg-surface-container-low dark:hover:bg-surface-container transition-all duration-200 active:scale-95" title="Plant Registry &amp; Crop Systems">
+          </Link>
+          <Link className="flex items-center justify-center w-11 h-11 rounded-xl text-outline dark:text-outline-variant hover:text-on-surface dark:hover:text-inverse-on-surface hover:bg-surface-container-low dark:hover:bg-surface-container transition-all duration-200 active:scale-95" to="/plants" title="Plant Registry &amp; Crop Systems">
             <span className="material-symbols-outlined" data-icon="potted_plant">potted_plant</span>
-          </button>
+          </Link>
 
-          <a className="flex items-center justify-center w-11 h-11 rounded-xl text-outline dark:text-outline-variant hover:text-on-surface dark:hover:text-inverse-on-surface hover:bg-surface-container-low dark:hover:bg-surface-container transition-all duration-200 active:scale-95" href="#" title="AI Assistant">
+          <Link className="flex items-center justify-center w-11 h-11 rounded-xl text-outline dark:text-outline-variant hover:text-on-surface dark:hover:text-inverse-on-surface hover:bg-surface-container-low dark:hover:bg-surface-container transition-all duration-200 active:scale-95" to="/ai-chat" title="AI Assistant">
             <span className="material-symbols-outlined" data-icon="smart_toy">smart_toy</span>
-          </a>
+          </Link>
 
-          <a className="flex items-center justify-center w-11 h-11 rounded-xl bg-surface-container dark:bg-primary/20 text-primary dark:text-inverse-primary transition-all duration-200 active:scale-95 shadow-sm" href="#" title="Telemetry Simulator">
+          <Link className="flex items-center justify-center w-11 h-11 rounded-xl bg-surface-container dark:bg-primary/20 text-primary dark:text-inverse-primary transition-all duration-200 active:scale-95 shadow-sm" to="/iot-simulator" title="Telemetry Simulator">
             <span className="material-symbols-outlined" data-icon="tune">tune</span>
-          </a>
+          </Link>
 
-          <a className="flex items-center justify-center w-11 h-11 rounded-xl text-outline dark:text-outline-variant hover:text-on-surface dark:hover:text-inverse-on-surface hover:bg-surface-container-low dark:hover:bg-surface-container transition-all duration-200 active:scale-95" href="#" title="Devices">
+          <Link className="flex items-center justify-center w-11 h-11 rounded-xl text-outline dark:text-outline-variant hover:text-on-surface dark:hover:text-inverse-on-surface hover:bg-surface-container-low dark:hover:bg-surface-container transition-all duration-200 active:scale-95" to="/iot-simulator" title="Devices">
             <span className="material-symbols-outlined" data-icon="sensors">sensors</span>
-          </a>
+          </Link>
         </nav>
 
         <div className="flex flex-col gap-3">
-          <button className="flex items-center justify-center w-11 h-11 rounded-xl text-outline hover:text-on-surface hover:bg-surface-container-low transition-all duration-200 active:scale-95" title="Settings">
-            <span className="material-symbols-outlined" data-icon="settings">settings</span>
-          </button>
           <LogoutButton className="flex items-center justify-center w-11 h-11 rounded-xl text-outline hover:text-error hover:bg-surface-container-low transition-all duration-200 active:scale-95" title="Logout" aria-label="Logout">
             <span className="material-symbols-outlined" data-icon="logout">logout</span>
           </LogoutButton>
@@ -236,7 +234,7 @@ export default function IoT_Simulator() {
         <header className="sticky top-0 z-30 bg-surface-container-lowest/90 dark:bg-inverse-surface/90 backdrop-blur-md border-b border-outline-variant/30 dark:border-outline/20 px-6 py-3.5 flex justify-between items-center w-full">
           <div className="flex items-center gap-4">
             <div className="flex flex-col leading-tight">
-              <span className="text-headline-md font-headline-md font-bold text-on-surface dark:text-inverse-on-surface">AeroSense</span>
+              <span className="text-headline-md font-headline-md font-bold text-on-surface dark:text-inverse-on-surface">SmartPlant</span>
               <span className="text-label-caps font-label-caps text-outline uppercase tracking-wider font-bold">Telemetry</span>
             </div>
           </div>

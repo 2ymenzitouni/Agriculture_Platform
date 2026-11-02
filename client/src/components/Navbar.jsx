@@ -12,7 +12,6 @@ export default function Navbar() {
     { path: '/ai-chat', label: 'AI Assistant', icon: 'chat' },
     { path: '/image-analysis', label: 'Image Analysis', icon: 'image' },
     { path: '/knowledge-base', label: 'Knowledge Base', icon: 'database' },
-    ...(!isAuthenticated ? [{ path: '/auth', label: 'Sign In', icon: 'lock' }] : []),
   ];
 
   return (
@@ -22,28 +21,28 @@ export default function Navbar() {
           <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-bold shadow-sm shadow-emerald-500/20">
             <span className="material-symbols-outlined text-sm">eco</span>
           </div>
-          <span className="font-bold text-slate-800 dark:text-slate-100 text-lg tracking-tight">AeroSense</span>
+          <span className="font-bold text-slate-800 dark:text-slate-100 text-lg tracking-tight">SmartPlant</span>
         </Link>
       </div>
-      <div className="flex items-center space-x-1 sm:space-x-2 overflow-x-auto py-1">
-        {navItems.map((item) => {
-          const isActive = location.pathname === item.path;
-          return (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                isActive
-                  ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-600/30 font-semibold'
-                  : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              <span className="material-symbols-outlined text-base">{item.icon}</span>
-              <span className="hidden md:inline">{item.label}</span>
-            </Link>
-          );
-        })}
-        {isAuthenticated && (
+      {isAuthenticated && (
+        <div className="flex items-center space-x-1 sm:space-x-2 overflow-x-auto py-1">
+          {navItems.map((item) => {
+            const isActive = location.pathname === item.path;
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  isActive
+                    ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-600/30 font-semibold'
+                    : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <span className="material-symbols-outlined text-base">{item.icon}</span>
+                <span className="hidden md:inline">{item.label}</span>
+              </Link>
+            );
+          })}
           <LogoutButton
             className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-error transition-all"
             title="Logout"
@@ -51,8 +50,8 @@ export default function Navbar() {
             <span className="material-symbols-outlined text-base">logout</span>
             <span className="hidden md:inline">Logout</span>
           </LogoutButton>
-        )}
-      </div>
+        </div>
+      )}
     </nav>
   );
 }

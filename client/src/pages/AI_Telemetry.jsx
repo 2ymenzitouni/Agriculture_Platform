@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import LogoutButton from '../components/LogoutButton';
 import API from '../services/app';
 
@@ -317,37 +318,34 @@ export default function AI_Telemetry() {
         </div>
 
         <nav className="flex flex-col items-center gap-2 text-center">
-          <a className="flex items-center justify-center w-11 h-11 rounded-xl text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors text-center" href="#" title="Dashboard">
+          <Link className="flex items-center justify-center w-11 h-11 rounded-xl text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors text-center" to="/" title="Dashboard">
             <span className="material-symbols-outlined text-[22px]">dashboard</span>
-          </a>
+          </Link>
 
-          <a className="flex items-center justify-center w-11 h-11 rounded-xl text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors text-center" href="#" title="Media Analysis">
+          <Link className="flex items-center justify-center w-11 h-11 rounded-xl text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors text-center" to="/image-analysis" title="Media Analysis">
             <span className="material-symbols-outlined text-[22px]">perm_media</span>
-          </a>
-          <a className="flex items-center justify-center w-11 h-11 rounded-xl text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors text-center" href="#" title="File Ingestion">
+          </Link>
+          <Link className="flex items-center justify-center w-11 h-11 rounded-xl text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors text-center" to="/knowledge-base" title="File Ingestion">
             <span className="material-symbols-outlined text-[22px]">upload_file</span>
-          </a>
-          <a className="flex items-center justify-center w-11 h-11 rounded-xl text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors text-center" href="#" title="Plant Registry &amp; Crop Systems">
+          </Link>
+          <Link className="flex items-center justify-center w-11 h-11 rounded-xl text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors text-center" to="/plants" title="Plant Registry &amp; Crop Systems">
             <span className="material-symbols-outlined text-[22px]">potted_plant</span>
-          </a>
+          </Link>
 
-          <a className="flex items-center justify-center w-11 h-11 rounded-xl bg-surface-container text-primary transition-colors text-center" href="#" title="AI Assistant">
+          <Link className="flex items-center justify-center w-11 h-11 rounded-xl bg-surface-container text-primary transition-colors text-center" to="/ai-chat" title="AI Assistant">
             <span className="material-symbols-outlined text-[22px]">smart_toy</span>
-          </a>
+          </Link>
 
-          <a className="flex items-center justify-center w-11 h-11 rounded-xl text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors text-center" href="#" title="Telemetry Simulator">
+          <Link className="flex items-center justify-center w-11 h-11 rounded-xl text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors text-center" to="/iot-simulator" title="Telemetry Simulator">
             <span className="material-symbols-outlined text-[22px]">tune</span>
-          </a>
+          </Link>
 
-          <a className="flex items-center justify-center w-11 h-11 rounded-xl text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors text-center" href="#" title="Devices">
+          <Link className="flex items-center justify-center w-11 h-11 rounded-xl text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors text-center" to="/iot-simulator" title="Devices">
             <span className="material-symbols-outlined text-[22px]">sensors</span>
-          </a>
+          </Link>
         </nav>
 
         <div className="flex flex-col items-center gap-2 text-center">
-          <button className="flex items-center justify-center w-11 h-11 rounded-xl text-outline hover:text-on-surface hover:bg-surface-container-low transition-colors text-center" title="Settings">
-            <span className="material-symbols-outlined text-[22px]">settings</span>
-          </button>
           <LogoutButton className="flex items-center justify-center w-11 h-11 rounded-xl text-outline hover:text-error hover:bg-surface-container-low transition-colors text-center" title="Logout" aria-label="Logout">
             <span className="material-symbols-outlined text-[22px]">logout</span>
           </LogoutButton>
@@ -358,7 +356,7 @@ export default function AI_Telemetry() {
       {/* <header className="fixed top-0 right-0 z-30 ml-[68px] w-[calc(100%-68px)] h-[61px] bg-surface-container-lowest/90 backdrop-blur-md border-b border-outline-variant/30 shadow-sm flex justify-between items-center px-6">
         <div className="flex items-center gap-3 shrink-0">
           <div className="flex flex-col leading-tight">
-            <span className="font-headline-md text-headline-md text-on-surface font-bold">AeroSense</span>
+            <span className="font-headline-md text-headline-md text-on-surface font-bold">SmartPlant</span>
             <span className="font-label-caps text-label-caps text-on-surface-variant tracking-wider font-bold">Telemetry</span>
           </div>
           <span className="bg-primary/10 text-primary text-label-caps font-label-caps px-2 py-0.5 rounded-full border border-primary/20">v2.4</span>
@@ -488,7 +486,7 @@ export default function AI_Telemetry() {
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h1 className="font-headline-md text-headline-md text-on-surface leading-tight">AeroSense AI Assistant</h1>
+                  <h1 className="font-headline-md text-headline-md text-on-surface leading-tight">SmartPlant AI Assistant</h1>
                   <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-surface-container-low text-tertiary font-label-sm text-label-sm font-semibold border border-tertiary/20">
                     <span className="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
                     Online (Active)
