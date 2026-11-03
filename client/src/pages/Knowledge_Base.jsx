@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import LogoutButton from '../components/LogoutButton';
 import API from '../services/app';
 
@@ -122,45 +123,41 @@ export default function Knowledge_Base() {
 <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-on-primary shadow-sm">
 <span className="material-symbols-outlined text-[24px]">sensors</span>
 </div>
-<span className="text-[9px] font-bold text-primary tracking-tighter uppercase mt-0.5">AeroSense</span>
+<span className="text-[9px] font-bold text-primary tracking-tighter uppercase mt-0.5">SmartPlant</span>
 </div>
 
 <nav className="flex flex-col items-center gap-3">
-<a className="flex items-center justify-center w-11 h-11 rounded-xl text-outline dark:text-outline-variant hover:text-on-surface dark:hover:text-inverse-on-surface hover:bg-surface-container-low dark:hover:bg-surface-container transition-all duration-200 active:scale-95 group relative" href="#" title="Dashboard">
+<Link className="flex items-center justify-center w-11 h-11 rounded-xl text-outline dark:text-outline-variant hover:text-on-surface dark:hover:text-inverse-on-surface hover:bg-surface-container-low dark:hover:bg-surface-container transition-all duration-200 active:scale-95 group relative" to="/" title="Dashboard">
 <span className="material-symbols-outlined text-[22px]">dashboard</span>
 <span className="absolute left-[72px] bg-inverse-surface text-inverse-on-surface text-[11px] font-medium px-2 py-1 rounded shadow-md opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">Dashboard</span>
-</a>
+</Link>
 
-<a className="flex items-center justify-center w-11 h-11 rounded-xl text-outline dark:text-outline-variant hover:text-on-surface dark:hover:text-inverse-on-surface hover:bg-surface-container-low dark:hover:bg-surface-container transition-all duration-200 active:scale-95 group relative" href="#" title="Media Analysis">
+<Link className="flex items-center justify-center w-11 h-11 rounded-xl text-outline dark:text-outline-variant hover:text-on-surface dark:hover:text-inverse-on-surface hover:bg-surface-container-low dark:hover:bg-surface-container transition-all duration-200 active:scale-95 group relative" to="/image-analysis" title="Media Analysis">
 <span className="material-symbols-outlined text-[22px]">perm_media</span>
 <span className="absolute left-[72px] bg-inverse-surface text-inverse-on-surface text-[11px] font-medium px-2 py-1 rounded shadow-md opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">Media Analysis</span>
-</a>
+</Link>
 
-<a className="flex items-center justify-center w-11 h-11 rounded-xl bg-surface-container dark:bg-primary/20 text-primary dark:text-inverse-primary transition-all duration-200 active:scale-95 group relative ring-1 ring-primary/20 shadow-sm" href="#" title="File Ingestion">
+<Link className="flex items-center justify-center w-11 h-11 rounded-xl bg-surface-container dark:bg-primary/20 text-primary dark:text-inverse-primary transition-all duration-200 active:scale-95 group relative ring-1 ring-primary/20 shadow-sm" to="/knowledge-base" title="File Ingestion">
 <span className="material-symbols-outlined text-[22px]" >upload_file</span>
 <span className="absolute left-[72px] bg-inverse-surface text-inverse-on-surface text-[11px] font-medium px-2 py-1 rounded shadow-md opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">File Ingestion</span>
-</a><a className="flex items-center justify-center w-11 h-11 rounded-xl text-outline dark:text-outline-variant hover:text-on-surface dark:hover:text-inverse-on-surface hover:bg-surface-container-low dark:hover:bg-surface-container transition-all duration-200 active:scale-95 group relative" href="#" title="Plant Registry &amp; Crop Systems"><span className="material-symbols-outlined text-[22px]">potted_plant</span><span className="absolute left-[72px] bg-inverse-surface text-inverse-on-surface text-[11px] font-medium px-2 py-1 rounded shadow-md opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">Plant Registry &amp; Crop Systems</span></a>
+</Link><Link className="flex items-center justify-center w-11 h-11 rounded-xl text-outline dark:text-outline-variant hover:text-on-surface dark:hover:text-inverse-on-surface hover:bg-surface-container-low dark:hover:bg-surface-container transition-all duration-200 active:scale-95 group relative" to="/plants" title="Plant Registry &amp; Crop Systems"><span className="material-symbols-outlined text-[22px]">potted_plant</span><span className="absolute left-[72px] bg-inverse-surface text-inverse-on-surface text-[11px] font-medium px-2 py-1 rounded shadow-md opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">Plant Registry &amp; Crop Systems</span></Link>
 
-<a className="flex items-center justify-center w-11 h-11 rounded-xl text-outline dark:text-outline-variant hover:text-on-surface dark:hover:text-inverse-on-surface hover:bg-surface-container-low dark:hover:bg-surface-container transition-all duration-200 active:scale-95 group relative" href="#" title="AI Assistant">
+<Link className="flex items-center justify-center w-11 h-11 rounded-xl text-outline dark:text-outline-variant hover:text-on-surface dark:hover:text-inverse-on-surface hover:bg-surface-container-low dark:hover:bg-surface-container transition-all duration-200 active:scale-95 group relative" to="/ai-chat" title="AI Assistant">
 <span className="material-symbols-outlined text-[22px]">smart_toy</span>
 <span className="absolute left-[72px] bg-inverse-surface text-inverse-on-surface text-[11px] font-medium px-2 py-1 rounded shadow-md opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">AI Assistant</span>
-</a>
+</Link>
 
-<a className="flex items-center justify-center w-11 h-11 rounded-xl text-outline dark:text-outline-variant hover:text-on-surface dark:hover:text-inverse-on-surface hover:bg-surface-container-low dark:hover:bg-surface-container transition-all duration-200 active:scale-95 group relative" href="#" title="Telemetry Simulator">
+<Link className="flex items-center justify-center w-11 h-11 rounded-xl text-outline dark:text-outline-variant hover:text-on-surface dark:hover:text-inverse-on-surface hover:bg-surface-container-low dark:hover:bg-surface-container transition-all duration-200 active:scale-95 group relative" to="/iot-simulator" title="Telemetry Simulator">
 <span className="material-symbols-outlined text-[22px]">tune</span>
 <span className="absolute left-[72px] bg-inverse-surface text-inverse-on-surface text-[11px] font-medium px-2 py-1 rounded shadow-md opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">Telemetry Simulator</span>
-</a>
+</Link>
 
-<a className="flex items-center justify-center w-11 h-11 rounded-xl text-outline dark:text-outline-variant hover:text-on-surface dark:hover:text-inverse-on-surface hover:bg-surface-container-low dark:hover:bg-surface-container transition-all duration-200 active:scale-95 group relative" href="#" title="Devices">
+<Link className="flex items-center justify-center w-11 h-11 rounded-xl text-outline dark:text-outline-variant hover:text-on-surface dark:hover:text-inverse-on-surface hover:bg-surface-container-low dark:hover:bg-surface-container transition-all duration-200 active:scale-95 group relative" to="/iot-simulator" title="Devices">
 <span className="material-symbols-outlined text-[22px]">sensors</span>
 <span className="absolute left-[72px] bg-inverse-surface text-inverse-on-surface text-[11px] font-medium px-2 py-1 rounded shadow-md opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">Devices</span>
-</a></nav>
+</Link></nav>
 
 <div className="flex flex-col items-center gap-3">
-<a className="flex items-center justify-center w-11 h-11 rounded-xl text-outline dark:text-outline-variant hover:text-on-surface dark:hover:text-inverse-on-surface hover:bg-surface-container-low dark:hover:bg-surface-container transition-all duration-200 active:scale-95 group relative" href="#" title="Settings">
-<span className="material-symbols-outlined text-[20px]">settings</span>
-<span className="absolute left-[72px] bg-inverse-surface text-inverse-on-surface text-[11px] font-medium px-2 py-1 rounded shadow-md opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">Settings</span>
-</a>
 <LogoutButton className="flex items-center justify-center w-11 h-11 rounded-xl text-outline dark:text-outline-variant hover:text-error hover:bg-error-container/20 transition-all duration-200 active:scale-95 group relative" title="Logout" aria-label="Logout">
 <span className="material-symbols-outlined text-[20px]">logout</span>
 <span className="absolute left-[72px] bg-inverse-surface text-inverse-on-surface text-[11px] font-medium px-2 py-1 rounded shadow-md opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">Logout</span>
@@ -174,7 +171,7 @@ export default function Knowledge_Base() {
 
 <div className="flex items-center gap-6 flex-1 max-w-2xl">
 <div className="flex items-center gap-2">
-<div className="flex flex-col leading-tight"><span className="font-headline-md text-headline-md font-bold text-on-surface dark:text-inverse-on-surface">AeroSense</span><span className="font-headline-md text-headline-md font-bold text-on-surface dark:text-inverse-on-surface">Telemetry</span></div>
+<div className="flex flex-col leading-tight"><span className="font-headline-md text-headline-md font-bold text-on-surface dark:text-inverse-on-surface">SmartPlant</span><span className="font-headline-md text-headline-md font-bold text-on-surface dark:text-inverse-on-surface">Telemetry</span></div>
 
 </div>
 

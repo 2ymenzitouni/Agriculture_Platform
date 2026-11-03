@@ -99,7 +99,7 @@ export default function Image_Upload() {
     <div className="w-full">
       <aside aria-label="Main Navigation" className="fixed left-0 top-0 z-40 flex h-screen w-[68px] flex-col items-center justify-between border-r border-outline-variant/30 bg-surface-container-lowest py-5 dark:bg-inverse-surface">
         <div className="invisible flex flex-col items-center gap-1">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-container text-on-primary shadow-sm" title="AeroSense IoT">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-container text-on-primary shadow-sm" title="SmartPlant IoT">
             <span className="material-symbols-outlined">sensors</span>
           </div>
           <span className="mt-1 text-[9px] font-bold uppercase tracking-tight text-primary">v2.4</span>
@@ -133,7 +133,7 @@ export default function Image_Upload() {
 
       <header className="sticky top-0 z-30 ml-[68px] flex w-[calc(100%-68px)] items-center justify-between border-b border-outline-variant/30 bg-surface-container-lowest/90 px-6 py-3.5 shadow-sm backdrop-blur-md dark:bg-inverse-surface/90">
         <div className="flex flex-col font-bold leading-tight tracking-tight text-on-surface dark:text-inverse-on-surface">
-          <span>AeroSense</span>
+          <span>SmartPlant</span>
           <span className="text-xs text-on-surface-variant">Telemetry</span>
         </div>
         <div className="hidden flex-1 justify-center px-6 md:flex">

@@ -14,7 +14,7 @@
 //               <span className="material-symbols-outlined text-lg" data-icon="sensors">sensors</span>
 //             </div>
 //             <div className="flex flex-col text-left leading-none">
-//               <span className="font-headline-md text-[15px] font-bold text-on-surface tracking-tight">AeroSense</span>
+//               <span className="font-headline-md text-[15px] font-bold text-on-surface tracking-tight">SmartPlant</span>
 //               <span className="font-label-caps text-[10px] text-outline font-semibold tracking-wider uppercase mt-0.5">Telemetry</span>
 //             </div>
 //           </a>
@@ -179,7 +179,7 @@
 //                 <div className="flex items-start space-x-2.5 pt-1">
 //                   <input className="mt-0.5 h-4 w-4 rounded border-outline-variant/80 text-primary-container focus:ring-primary-container/30" id="terms-agree" required type="checkbox" />
 //                   <label className="text-xs text-on-surface-variant" htmlFor="terms-agree">
-//                     I agree to the AeroSense IoT <a className="text-primary hover:underline font-medium" href="#">Terms of Service</a>, <a className="text-primary hover:underline font-medium" href="#">Telemetry Acceptable Use Policy</a>, and Data Privacy Protocols.
+//                     I agree to the SmartPlant IoT <a className="text-primary hover:underline font-medium" href="#">Terms of Service</a>, <a className="text-primary hover:underline font-medium" href="#">Telemetry Acceptable Use Policy</a>, and Data Privacy Protocols.
 //                   </label>
 //                 </div>
 
@@ -251,12 +251,15 @@
 
 // **********************************************************************
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import API from '../services/app';
 
 export default function User_Register_Login() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('register');
+  const [searchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState(
+    searchParams.get('tab') === 'login' ? 'login' : 'register',
+  );
   
   // Form input states
   const [registerData, setRegisterData] = useState({ name: '', email: '', password: '', repeatPassword: '' });
@@ -331,11 +334,11 @@ export default function User_Register_Login() {
       <header className="fixed top-0 left-0 right-0 z-50 w-full bg-surface-container-lowest/90 backdrop-blur-md border-b border-outline-variant/30 px-4 lg:px-8 py-2.5 flex items-center justify-between transition-all">
         <div className="flex items-center space-x-3">
           <a href="#" className="flex items-center space-x-2.5 group">
-            <div className="w-9 h-9 rounded-lg bg-primary-container text-on-primary flex items-center justify-center shadow-sm group-hover:opacity-95 transition-all">
-              <span className="material-symbols-outlined text-lg" data-icon="sensors">sensors</span>
+            <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-bold shadow-sm shadow-emerald-500/20 group-hover:opacity-95 transition-all">
+              <span className="material-symbols-outlined text-sm">eco</span>
             </div>
             <div className="flex flex-col text-left leading-none">
-              <span className="font-headline-md text-[15px] font-bold text-on-surface tracking-tight">AeroSense</span>
+              <span className="font-headline-md text-[15px] font-bold text-on-surface tracking-tight">SmartPlant</span>
               <span className="font-label-caps text-[10px] text-outline font-semibold tracking-wider uppercase mt-0.5">Telemetry</span>
             </div>
           </a>
@@ -499,7 +502,7 @@ export default function User_Register_Login() {
                 <div className="flex items-start space-x-2.5 pt-1">
                   <input className="mt-0.5 h-4 w-4 rounded border-outline-variant/80 text-primary-container focus:ring-primary-container/30" id="terms-agree" required type="checkbox" />
                   <label className="text-xs text-on-surface-variant" htmlFor="terms-agree">
-                    I agree to the AeroSense IoT <a className="text-primary hover:underline font-medium" href="#">Terms of Service</a> and Data Privacy Protocols.
+                    I agree to the SmartPlant IoT <a className="text-primary hover:underline font-medium" href="#">Terms of Service</a> and Data Privacy Protocols.
                   </label>
                 </div>
 
