@@ -96,15 +96,9 @@ graph TD
    - Semantic text chunking and 768-dimensional vector embedding storage directly inside PostgreSQL using `pgvector`.
 
 5. **🤖 Context-Aware Agronomic Chatbot**:
-<<<<<<< HEAD
-   - Uses semantic search (`<=>` cosine distance) over the authenticated user's knowledge-base documents and combines retrieved guidance with that user's sensor readings and disease detections.
-   - Answers are rendered with formatted headings, bold text, lists, and tables. Sensor questions can show the full readings history in a table.
-   - Disease-specific questions return source-grounded guidance; requests for detection images show the user's records, filtered to a named disease when specified.
-   - Chat generation uses `gemini-3.1-flash-lite`; query embeddings use `gemini-embedding-2`.
-=======
-   - Combines semantic similarity search (`<=>` cosine distance) with **real-time plant sensor readings** and **latest disease detection events**.
-   - Gemini LLM synthesizes live hardware telemetry, diagnostic history, and official agronomic literature into actionable farming instructions.
->>>>>>> origin/main
+   - Uses LangChain's `ChatGoogleGenerativeAI` with Gemini `gemini-3.1-flash-lite` to generate answers from the authenticated user's retrieved knowledge-base documents, sensor readings, and disease detections.
+   - Keeps user-scoped PostgreSQL/pgvector semantic search (`<=>` cosine distance); query embeddings continue using `gemini-embedding-2` to remain compatible with stored document vectors.
+   - Disease guidance is grounded in retrieved sources, while detection history and sensor readings remain scoped to the authenticated user.
 
 6. **🔒 Security & Authentication**:
    - Secure registration and login with bcrypt password hashing and JWT (JSON Web Tokens).
