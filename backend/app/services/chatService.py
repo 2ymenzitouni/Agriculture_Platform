@@ -9,6 +9,18 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_google_genai import ChatGoogleGenerativeAI
 
 EMBEDDING_MODEL = "gemini-embedding-2"
+SENSOR_READING_COUNT_WORDS = {
+    "one": 1,
+    "two": 2,
+    "three": 3,
+    "four": 4,
+    "five": 5,
+    "six": 6,
+    "seven": 7,
+    "eight": 8,
+    "nine": 9,
+    "ten": 10,
+}
 DETECTION_REQUEST_STOP_WORDS = {
     "a", "all", "and", "can", "called", "detection", "detections", "disease",
     "diseases", "display", "for", "from", "get", "image", "images", "in",
@@ -291,6 +303,32 @@ class ChatService:
             raise ValueError("Please enter a question.")
 
         normalized_question = re.sub(r"[_-]+", " ", question.casefold())
+        asks_for_sensor_data = bool(
+            re.search(
+                r"\b(sensor|readings?|measurements?|ph|tds|humidity|light|"
+                r"water\s+level|(?:air|water)\s+temperature)\b",
+                normalized_question,
+            )
+        )
+        sensor_count_match = re.search(
+            r"\b(?:last|latest|most recent|past|previous)\s+"
+            r"(\d+|one|two|three|four|five|six|seven|eight|nine|ten)\b",
+            normalized_question,
+        )
+        requested_sensor_count = None
+        if sensor_count_match:
+            count_text = sensor_count_match.group(1)
+            requested_sensor_count = SENSOR_READING_COUNT_WORDS.get(
+                count_text,
+                int(count_text) if count_text.isdigit() else None,
+            )
+        asks_for_all_sensor_readings = asks_for_sensor_data and (
+            requested_sensor_count is not None
+            or bool(re.search(
+                r"\b(all|every|entire|full|history|historical|records?)\b",
+                normalized_question,
+            ))
+        )
         asks_for_current_sensor = bool(
             re.search(
                 r"\b(?:current|latest|my)\s+(?:current\s+)?"
@@ -362,6 +400,7 @@ class ChatService:
         knowledge_chunks = []
         if not (
             asks_for_current_sensor
+            or asks_for_all_sensor_readings
             or asks_for_sensor_today
             or asks_for_detections_today
             or asks_for_yesterdays_detection
@@ -377,6 +416,11 @@ class ChatService:
             []
             if asks_for_sensor_today or asks_for_detections_today
             else await self.get_sensor_readings(user_id)
+        )
+        requested_sensor_readings = (
+            sensor_readings[:requested_sensor_count]
+            if requested_sensor_count is not None
+            else sensor_readings
         )
         latest_sensor = sensor_readings[0] if sensor_readings else {}
         sensor_readings_today = (
@@ -435,8 +479,13 @@ class ChatService:
 
         if asks_for_sensor_today:
             context_str += "--- SENSOR READINGS RECORDED TODAY ---\n"
-            if sensor_readings_today:
-                for reading in sensor_readings_today:
+            requested_today_readings = (
+                sensor_readings_today[:requested_sensor_count]
+                if requested_sensor_count is not None
+                else sensor_readings_today
+            )
+            if requested_today_readings:
+                for reading in requested_today_readings:
                     context_str += (
                         f"Recorded at: {reading.get('timestamp')}; "
                         f"pH: {reading.get('ph')}, TDS: {reading.get('tds')} ppm, "
@@ -463,6 +512,22 @@ class ChatService:
                 else:
                     context_str += "No earlier sensor readings are available.\n"
 
+        if asks_for_all_sensor_readings and not asks_for_sensor_today:
+            context_str += "--- REQUESTED SENSOR READINGS ---\n"
+            if requested_sensor_readings:
+                for reading in requested_sensor_readings:
+                    context_str += (
+                        f"Recorded at: {reading.get('timestamp')}; "
+                        f"pH: {reading.get('ph')}, TDS: {reading.get('tds')} ppm, "
+                        f"Air temperature: {reading.get('temperature')}°C, "
+                        f"Humidity: {reading.get('humidity')}%, "
+                        f"Water temperature: {reading.get('water_temperature')}°C, "
+                        f"Water level: {reading.get('water_level')}%, "
+                        f"Light: {reading.get('light')}\n"
+                    )
+            else:
+                context_str += "No sensor readings are available.\n"
+
         if asks_for_detections_today:
             context_str += "--- DISEASE DETECTIONS RECORDED TODAY ---\n"
             if disease_detections_today:
@@ -486,7 +551,11 @@ class ChatService:
                 else:
                     context_str += "No earlier disease detections are available.\n"
 
-        if not (asks_for_sensor_today or asks_for_detections_today):
+        if not (
+            asks_for_sensor_today
+            or asks_for_all_sensor_readings
+            or asks_for_detections_today
+        ):
             context_str += "--- LATEST SENSOR READINGS ---\n"
             if latest_sensor:
                 context_str += f"Timestamp: {latest_sensor.get('timestamp')}\n" \
@@ -588,11 +657,34 @@ class ChatService:
                 "state that clearly rather than filling gaps from guesswork. Cite the source "
                 "document name(s)."
             )
+        if asks_for_all_sensor_readings:
+            if requested_sensor_count is not None:
+                system_instruction += (
+                    f"\n\nThe user asked for the {requested_sensor_count} most recent sensor "
+                    "readings. Use all records supplied in the context; do not claim historical "
+                    "readings are unavailable when they are present. Present each supplied record "
+                    "with its timestamp and readings. The application also displays these records "
+                    "in a table."
+                )
+            else:
+                system_instruction += (
+                    "\n\nThe user asked for all sensor readings. Use the complete sensor history "
+                    "provided in the context, not only the latest reading. Present every supplied "
+                    "record with its timestamp and readings; do not omit older records or summarize "
+                    "the history as a single latest value. The application also displays these records "
+                    "in a table."
+                )
 
         chat_chain = (
             self.chat_prompt
             | self.chat_model.bind(
-                max_output_tokens=2048 if asks_for_disease_treatment else 1024
+                max_output_tokens=(
+                    4096
+                    if asks_for_all_sensor_readings
+                    else 2048
+                    if asks_for_disease_treatment
+                    else 1024
+                )
             )
             | StrOutputParser()
         )
@@ -621,7 +713,15 @@ class ChatService:
                 else latest_sensor
             ),
             "sensor_readings": (
-                sensor_readings_today if asks_for_sensor_today else sensor_readings
+                sensor_readings_today
+                if asks_for_sensor_today and requested_sensor_count is None
+                else sensor_readings_today[:requested_sensor_count]
+                if asks_for_sensor_today
+                else requested_sensor_readings
+                if asks_for_all_sensor_readings
+                else sensor_readings[:1]
+                if asks_for_current_sensor or asks_for_sensor_data
+                else []
             ),
             "detection_snapshot": (
                 disease_detections_today[0]
