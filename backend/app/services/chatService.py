@@ -4,6 +4,9 @@ from uuid import UUID
 import asyncpg
 from google import genai
 from google.genai import types
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_google_genai import ChatGoogleGenerativeAI
 
 EMBEDDING_MODEL = "gemini-embedding-2"
 DETECTION_REQUEST_STOP_WORDS = {
@@ -100,6 +103,18 @@ class ChatService:
         self.db_pool = db_pool
         self.gemini_client = genai.Client(api_key=gemini_api_key)
         self.gemini_model = gemini_model
+        self.chat_model = ChatGoogleGenerativeAI(
+            model=gemini_model,
+            api_key=gemini_api_key,
+            vertexai=False,
+            temperature=0.2,
+        )
+        self.chat_prompt = ChatPromptTemplate.from_messages(
+            [
+                ("system", "{system_instruction}"),
+                ("human", "{context}\nUser Question: {question}"),
+            ]
+        )
 
     async def _get_embedding(self, text: str) -> list[float]:
         """Generates a query embedding using the document-ingestion model."""
@@ -574,24 +589,27 @@ class ChatService:
                 "document name(s)."
             )
 
-        full_prompt = f"{context_str}\nUser Question: {question}"
-
-        response = self.gemini_client.models.generate_content(
-            model=self.gemini_model,
-            contents=[full_prompt],
-            config=types.GenerateContentConfig(
-                system_instruction=system_instruction,
-                temperature=0.2,
+        chat_chain = (
+            self.chat_prompt
+            | self.chat_model.bind(
                 max_output_tokens=2048 if asks_for_disease_treatment else 1024
             )
+            | StrOutputParser()
+        )
+        answer = await chat_chain.ainvoke(
+            {
+                "system_instruction": system_instruction,
+                "context": context_str,
+                "question": question,
+            }
         )
 
-        if not response.text or not response.text.strip():
+        if not answer or not answer.strip():
             raise RuntimeError("The AI model returned an empty answer.")
 
         return {
             "session_id": session_id,
-            "answer": response.text,
+            "answer": answer,
             "sources_used": [
                 {"document": c["document_name"], "chunk_index": c["chunk_index"]} for c in knowledge_chunks
             ],
