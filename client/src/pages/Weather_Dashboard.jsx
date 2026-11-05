@@ -1,10 +1,29 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import LogoutButton from '../components/LogoutButton';
 
-const WEATHER_API_URL =
-  'https://api.open-meteo.com/v1/forecast?latitude=7.4675&longitude=80.6234&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,weather_code,pressure_msl,wind_speed_10m,wind_direction_10m&daily=temperature_2m_max,temperature_2m_min&wind_speed_unit=kmh&timezone=Asia%2FColombo';
+const DEFAULT_LOCATION = {
+  latitude: 7.4675,
+  longitude: 80.6234,
+  name: 'Matale, Sri Lanka',
+  timeZone: 'Asia/Colombo',
+};
 const WEATHER_REFRESH_INTERVAL = 10 * 60 * 1000;
+
+const getWeatherApiUrl = ({ latitude, longitude }) => {
+  const params = new URLSearchParams({
+    latitude: String(latitude),
+    longitude: String(longitude),
+    current: 'temperature_2m,relative_humidity_2m,apparent_temperature,is_day,weather_code,pressure_msl,wind_speed_10m,wind_direction_10m',
+    daily: 'temperature_2m_max,temperature_2m_min',
+    wind_speed_unit: 'kmh',
+    timezone: 'auto',
+  });
+  return `https://api.open-meteo.com/v1/forecast?${params}`;
+};
+
+const formatCoordinate = (value, positiveDirection, negativeDirection) =>
+  `${Math.abs(value).toFixed(4)}° ${value >= 0 ? positiveDirection : negativeDirection}`;
 
 const weatherDescriptions = {
   0: 'Clear sky',
@@ -52,13 +71,91 @@ export default function Weather_Dashboard() {
   const [weatherError, setWeatherError] = useState('');
   const [lastUpdated, setLastUpdated] = useState(null);
   const [currentTime, setCurrentTime] = useState(() => new Date());
+  const [location, setLocation] = useState(DEFAULT_LOCATION);
+  const [locationStatus, setLocationStatus] = useState('Using Matale, Sri Lanka as default location');
+  const [locationReady, setLocationReady] = useState(() => !navigator.geolocation);
+  const locationRequestStarted = useRef(false);
 
   useEffect(() => {
+    if (!navigator.geolocation || locationRequestStarted.current) {
+      return undefined;
+    }
+    locationRequestStarted.current = true;
+
+    navigator.geolocation.getCurrentPosition(
+      async ({ coords }) => {
+        if (
+          !Number.isFinite(coords.latitude)
+          || !Number.isFinite(coords.longitude)
+          || Math.abs(coords.latitude) > 90
+          || Math.abs(coords.longitude) > 180
+        ) {
+          setLocationStatus('Invalid location; using Matale, Sri Lanka');
+          setLocationReady(true);
+          return;
+        }
+
+        const detectedLocation = {
+          latitude: coords.latitude,
+          longitude: coords.longitude,
+          name: 'Your location',
+          timeZone: DEFAULT_LOCATION.timeZone,
+        };
+        setLocation(detectedLocation);
+        setLocationReady(true);
+        setLocationStatus('Location detected; resolving place name…');
+
+        const params = new URLSearchParams({
+          latitude: String(coords.latitude),
+          longitude: String(coords.longitude),
+          localityLanguage: 'en',
+        });
+
+        try {
+          const response = await fetch(
+            `https://api.bigdatacloud.net/data/reverse-geocode-client?${params}`,
+          );
+          if (!response.ok) {
+            throw new Error(`Location lookup failed (${response.status}).`);
+          }
+          const place = await response.json();
+          const locality = place.city || place.locality || place.principalSubdivision;
+          if (!locality || !place.countryName) {
+            throw new Error('Location provider returned no city or country.');
+          }
+
+          setLocation((current) => ({
+            ...current,
+            name: `${locality}, ${place.countryName}`,
+          }));
+          setLocationStatus('Current location');
+        } catch {
+          setLocationStatus('Place name unavailable; showing coordinates');
+        }
+      },
+      () => {
+        setLocationStatus('Using default location; location access unavailable');
+        setLocationReady(true);
+      },
+      { enableHighAccuracy: false, maximumAge: 15 * 60 * 1000, timeout: 10_000 },
+    );
+
+    return undefined;
+  }, []);
+
+  const { latitude, longitude, timeZone } = location;
+
+  useEffect(() => {
+    if (!locationReady) {
+      return undefined;
+    }
+
     const controller = new AbortController();
+    let isCurrentLocation = true;
 
     const loadWeather = async () => {
       try {
-        const response = await fetch(WEATHER_API_URL, { signal: controller.signal });
+        const response = await fetch(getWeatherApiUrl({ latitude, longitude }), { signal: controller.signal });
         if (!response.ok) {
           throw new Error(`Weather provider request failed (${response.status}).`);
         }
@@ -68,6 +165,10 @@ export default function Weather_Dashboard() {
         const daily = data.daily;
         if (!current || !daily) {
           throw new Error('Weather provider returned an incomplete response.');
+        }
+
+        if (!isCurrentLocation) {
+          return;
         }
 
         setWeather({
@@ -80,11 +181,12 @@ export default function Weather_Dashboard() {
           windDirection: requireNumber(current.wind_direction_10m, 'wind direction'),
           maxTemperature: requireNumber(daily.temperature_2m_max?.[0], 'daily maximum temperature'),
           minTemperature: requireNumber(daily.temperature_2m_min?.[0], 'daily minimum temperature'),
+          timeZone: data.timezone || timeZone,
         });
         setLastUpdated(new Date());
         setWeatherError('');
       } catch (error) {
-        if (error.name !== 'AbortError') {
+        if (isCurrentLocation && error.name !== 'AbortError') {
           setWeatherError(error instanceof Error ? error.message : 'Weather data could not be loaded.');
         }
       }
@@ -95,11 +197,12 @@ export default function Weather_Dashboard() {
     const clockInterval = window.setInterval(() => setCurrentTime(new Date()), 2000);
 
     return () => {
+      isCurrentLocation = false;
       controller.abort();
       window.clearInterval(weatherInterval);
       window.clearInterval(clockInterval);
     };
-  }, []);
+  }, [latitude, longitude, timeZone, locationReady]);
 
   const temperatureScale = weather
     ? clampPercentage(((weather.temperature + 10) / 60) * 100)
@@ -114,7 +217,7 @@ export default function Weather_Dashboard() {
     ? clampPercentage(((weather.pressure - 950) / 100) * 100)
     : 0;
   const [clock, meridiem] = currentTime.toLocaleTimeString('en-US', {
-    timeZone: 'Asia/Colombo',
+    timeZone: weather?.timeZone || location.timeZone,
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
@@ -263,7 +366,7 @@ export default function Weather_Dashboard() {
 <div className="text-center py-1">
 <div className="digital-lcd text-[34px] lg:text-[38px] font-bold text-on-surface leading-none tracking-widest select-none">{clock} <span className="text-headline-md font-headline-md text-outline">{meridiem}</span></div>
 <div className="text-label-md font-label-md font-bold text-outline tracking-widest mt-1 uppercase">
-            {currentTime.toLocaleDateString('en-GB', { timeZone: 'Asia/Colombo', day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase()}
+            {currentTime.toLocaleDateString('en-GB', { timeZone: weather?.timeZone || location.timeZone, day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase()}
           </div>
 </div>
 </div>
@@ -326,9 +429,11 @@ export default function Weather_Dashboard() {
 <span className="text-label-caps font-label-caps text-outline block uppercase tracking-wider">BASE LOCATION</span>
 <div className="text-headline-md font-headline-md font-bold text-on-surface mt-1 tracking-tight flex items-center gap-1">
 <span className="material-symbols-outlined text-primary text-[20px]">location_on</span>
-              MATALE, SRI LANKA
+  {locationReady ? location.name.toUpperCase() : 'DETECTING LOCATION…'}
             </div>
-<span className="text-[11px] text-outline font-medium mt-1 block">Geo Coordinates: 7.4675° N, 80.6234° E</span>
+<span className="text-[11px] text-outline font-medium mt-1 block" title={locationStatus}>
+  Geo Coordinates: {formatCoordinate(location.latitude, 'N', 'S')}, {formatCoordinate(location.longitude, 'E', 'W')}
+</span>
 </div>
 
 <div className="w-20 h-16 rounded-xl bg-surface-container-low overflow-hidden flex items-center justify-center flex-shrink-0">
@@ -338,7 +443,7 @@ export default function Weather_Dashboard() {
 <div className="mt-4 pt-3 border-t border-outline-variant/30 flex items-center justify-between text-[11px] text-outline">
 <span className="flex items-center gap-1 font-medium">
 <span className="material-symbols-outlined text-[15px] text-primary">schedule</span>
-            {weatherError ? 'Weather update failed' : `Last Update : ${lastUpdated ? lastUpdated.toLocaleString('en-GB', { timeZone: 'Asia/Colombo' }) : 'Loading…'}`}
+            {weatherError ? 'Weather update failed' : `Last Update : ${lastUpdated ? lastUpdated.toLocaleString('en-GB', { timeZone: weather?.timeZone || location.timeZone }) : 'Loading…'}`}
           </span>
 <span className={`${weatherError ? 'text-red-600 bg-red-50' : 'text-emerald-600 bg-emerald-50'} font-bold uppercase tracking-wider text-[10px] px-2 py-0.5 rounded`} title={weatherError || undefined}>{weatherError ? 'Offline' : weather ? 'Synced' : 'Loading'}</span>
 </div>
