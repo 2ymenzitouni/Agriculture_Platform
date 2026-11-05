@@ -1,7 +1,126 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import LogoutButton from '../components/LogoutButton';
 
+const WEATHER_API_URL =
+  'https://api.open-meteo.com/v1/forecast?latitude=7.4675&longitude=80.6234&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,weather_code,pressure_msl,wind_speed_10m,wind_direction_10m&daily=temperature_2m_max,temperature_2m_min&wind_speed_unit=kmh&timezone=Asia%2FColombo';
+const WEATHER_REFRESH_INTERVAL = 10 * 60 * 1000;
+
+const weatherDescriptions = {
+  0: 'Clear sky',
+  1: 'Mainly clear',
+  2: 'Partly cloudy',
+  3: 'Overcast',
+  45: 'Fog',
+  48: 'Rime fog',
+  51: 'Light drizzle',
+  53: 'Moderate drizzle',
+  55: 'Dense drizzle',
+  56: 'Light freezing drizzle',
+  57: 'Dense freezing drizzle',
+  61: 'Slight rain',
+  63: 'Moderate rain',
+  65: 'Heavy rain',
+  66: 'Light freezing rain',
+  67: 'Heavy freezing rain',
+  71: 'Slight snowfall',
+  73: 'Moderate snowfall',
+  75: 'Heavy snowfall',
+  77: 'Snow grains',
+  80: 'Slight rain showers',
+  81: 'Moderate rain showers',
+  82: 'Violent rain showers',
+  85: 'Slight snow showers',
+  86: 'Heavy snow showers',
+  95: 'Thunderstorm',
+  96: 'Thunderstorm with slight hail',
+  99: 'Thunderstorm with heavy hail',
+};
+
+const getWeatherDescription = (code) => weatherDescriptions[code] ?? 'Unknown conditions';
+const clampPercentage = (value) => Math.min(100, Math.max(0, value));
+
+const requireNumber = (value, label) => {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    throw new Error(`Weather provider returned an invalid ${label}.`);
+  }
+  return value;
+};
+
 export default function Weather_Dashboard() {
+  const [weather, setWeather] = useState(null);
+  const [weatherError, setWeatherError] = useState('');
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const [currentTime, setCurrentTime] = useState(() => new Date());
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    const loadWeather = async () => {
+      try {
+        const response = await fetch(WEATHER_API_URL, { signal: controller.signal });
+        if (!response.ok) {
+          throw new Error(`Weather provider request failed (${response.status}).`);
+        }
+
+        const data = await response.json();
+        const current = data.current;
+        const daily = data.daily;
+        if (!current || !daily) {
+          throw new Error('Weather provider returned an incomplete response.');
+        }
+
+        setWeather({
+          temperature: requireNumber(current.temperature_2m, 'temperature'),
+          feelsLike: requireNumber(current.apparent_temperature, 'feels-like temperature'),
+          humidity: requireNumber(current.relative_humidity_2m, 'humidity'),
+          weatherCode: requireNumber(current.weather_code, 'weather condition'),
+          pressure: requireNumber(current.pressure_msl, 'air pressure'),
+          windSpeed: requireNumber(current.wind_speed_10m, 'wind speed'),
+          windDirection: requireNumber(current.wind_direction_10m, 'wind direction'),
+          maxTemperature: requireNumber(daily.temperature_2m_max?.[0], 'daily maximum temperature'),
+          minTemperature: requireNumber(daily.temperature_2m_min?.[0], 'daily minimum temperature'),
+        });
+        setLastUpdated(new Date());
+        setWeatherError('');
+      } catch (error) {
+        if (error.name !== 'AbortError') {
+          setWeatherError(error instanceof Error ? error.message : 'Weather data could not be loaded.');
+        }
+      }
+    };
+
+    loadWeather();
+    const weatherInterval = window.setInterval(loadWeather, WEATHER_REFRESH_INTERVAL);
+    const clockInterval = window.setInterval(() => setCurrentTime(new Date()), 2000);
+
+    return () => {
+      controller.abort();
+      window.clearInterval(weatherInterval);
+      window.clearInterval(clockInterval);
+    };
+  }, []);
+
+  const temperatureScale = weather
+    ? clampPercentage(((weather.temperature + 10) / 60) * 100)
+    : 0;
+  const maxTemperatureScale = weather
+    ? clampPercentage(((weather.maxTemperature + 10) / 60) * 100)
+    : 0;
+  const minTemperatureScale = weather
+    ? clampPercentage(((weather.minTemperature + 10) / 60) * 100)
+    : 0;
+  const pressureScale = weather
+    ? clampPercentage(((weather.pressure - 950) / 100) * 100)
+    : 0;
+  const [clock, meridiem] = currentTime.toLocaleTimeString('en-US', {
+    timeZone: 'Asia/Colombo',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true,
+  }).split(' ');
+
   return (
     <div className="w-full">
       
@@ -96,7 +215,7 @@ export default function Weather_Dashboard() {
 </div>
 <div>
 <h1 className="text-headline-lg font-headline-lg text-on-surface leading-tight">Dashboard</h1>
-<p className="text-xs text-outline font-medium mt-0.5">Powerd By Openweathermap</p>
+<p className="text-xs text-outline font-medium mt-0.5">Powered by Open-Meteo</p>
 </div>
 </div>
 <div className="hidden sm:flex items-center justify-center w-8 h-8 rounded-full bg-surface-container-low text-primary">
@@ -112,15 +231,15 @@ export default function Weather_Dashboard() {
 </div>
 <div className="min-w-0">
 <span className="text-label-caps font-label-caps text-outline block uppercase tracking-wider">TODAY WEATHER</span>
-<div className="text-headline-md font-headline-md font-bold text-on-surface tracking-tight mt-0.5 truncate">CLOUDS</div>
-<span className="text-[10px] text-outline font-medium block truncate">CLOUDS, BROKEN CLOUDS</span>
+<div className="text-headline-md font-headline-md font-bold text-on-surface tracking-tight mt-0.5 truncate">{weather ? getWeatherDescription(weather.weatherCode).toUpperCase() : '—'}</div>
+<span className="text-[10px] text-outline font-medium block truncate">{weather ? getWeatherDescription(weather.weatherCode) : 'Loading current conditions'}</span>
 </div>
 </div>
 
 <div className="pl-3 flex items-center justify-between">
 <div className="min-w-0">
 <span className="text-label-caps font-label-caps text-outline block uppercase tracking-wider">WEATHER FEEL LIKE</span>
-<div className="text-headline-lg font-headline-lg font-bold text-on-surface mt-0.5">26 C</div>
+<div className="text-headline-lg font-headline-lg font-bold text-on-surface mt-0.5">{weather ? `${weather.feelsLike.toFixed(1)} °C` : '—'}</div>
 <span className="text-[10px] text-outline font-medium block">IN CELSIUS</span>
 </div>
 <div className="w-12 h-14 rounded-lg bg-surface-container-low flex items-center justify-center overflow-hidden flex-shrink-0">
@@ -142,9 +261,9 @@ export default function Weather_Dashboard() {
 </div>
 
 <div className="text-center py-1">
-<div className="digital-lcd text-[34px] lg:text-[38px] font-bold text-on-surface leading-none tracking-widest select-none">11:28:23 <span className="text-headline-md font-headline-md text-outline">PM</span></div>
+<div className="digital-lcd text-[34px] lg:text-[38px] font-bold text-on-surface leading-none tracking-widest select-none">{clock} <span className="text-headline-md font-headline-md text-outline">{meridiem}</span></div>
 <div className="text-label-md font-label-md font-bold text-outline tracking-widest mt-1 uppercase">
-            06 MAY 2022
+            {currentTime.toLocaleDateString('en-GB', { timeZone: 'Asia/Colombo', day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase()}
           </div>
 </div>
 </div>
@@ -157,7 +276,7 @@ export default function Weather_Dashboard() {
 <span className="text-label-caps font-label-caps text-outline block uppercase tracking-wider">TEMPERATURE</span>
 <div className="flex items-center justify-between mt-2">
 <div>
-<div className="text-[36px] font-bold font-display-metric text-on-surface leading-none">25 C</div>
+<div className="text-[36px] font-bold font-display-metric text-on-surface leading-none">{weather ? `${weather.temperature.toFixed(1)} °C` : '—'}</div>
 <span className="text-xs text-outline font-medium mt-1 inline-block">Ambient Sensor #01</span>
 </div>
 <div className="w-20 h-16 rounded-xl bg-surface-container-low overflow-hidden flex items-center justify-center">
@@ -168,11 +287,11 @@ export default function Weather_Dashboard() {
 
 <div className="mt-4 pt-2">
 <div className="w-full bg-[#E2E8F0] h-2.5 rounded-full overflow-hidden flex items-center">
-<div className="bg-emerald-500 h-full rounded-full transition-all duration-500" ></div>
+<div className="bg-emerald-500 h-full rounded-full transition-all duration-500" style={{ width: `${temperatureScale}%` }}></div>
 </div>
 <div className="flex justify-between items-center text-[11px] font-semibold text-outline mt-1.5">
 <span className="">Current Scale</span>
-<span className="text-emerald-600 font-bold">44%</span>
+<span className="text-emerald-600 font-bold">{Math.round(temperatureScale)}%</span>
 </div>
 </div>
 </div>
@@ -181,22 +300,22 @@ export default function Weather_Dashboard() {
 
 <div>
 <div className="flex justify-between items-center mb-1.5">
-<span className="text-xs font-bold text-on-surface tracking-wide">MAX TEMPERATURE : 25 C</span>
-<span className="text-label-caps font-label-caps text-emerald-600 font-bold">44%</span>
+<span className="text-xs font-bold text-on-surface tracking-wide">MAX TEMPERATURE : {weather ? `${weather.maxTemperature.toFixed(1)} °C` : '—'}</span>
+<span className="text-label-caps font-label-caps text-emerald-600 font-bold">{weather ? `${Math.round(maxTemperatureScale)}%` : '—'}</span>
 </div>
 <div className="w-full bg-[#E2E8F0] h-3 rounded-full overflow-hidden flex items-center">
-<div className="bg-[#10B981] h-full rounded-full transition-all duration-500" ></div>
+<div className="bg-[#10B981] h-full rounded-full transition-all duration-500" style={{ width: `${maxTemperatureScale}%` }}></div>
 </div>
 </div>
 <div className="h-[1px] bg-outline-variant/30 my-2"></div>
 
 <div>
 <div className="flex justify-between items-center mb-1.5">
-<span className="text-xs font-bold text-on-surface tracking-wide">MIN TEMPERATURE : 25 C</span>
-<span className="text-label-caps font-label-caps text-primary font-bold">44%</span>
+<span className="text-xs font-bold text-on-surface tracking-wide">MIN TEMPERATURE : {weather ? `${weather.minTemperature.toFixed(1)} °C` : '—'}</span>
+<span className="text-label-caps font-label-caps text-primary font-bold">{weather ? `${Math.round(minTemperatureScale)}%` : '—'}</span>
 </div>
 <div className="w-full bg-[#E2E8F0] h-3 rounded-full overflow-hidden flex items-center">
-<div className="bg-[#2563EB] h-full rounded-full transition-all duration-500" ></div>
+<div className="bg-[#2563EB] h-full rounded-full transition-all duration-500" style={{ width: `${minTemperatureScale}%` }}></div>
 </div>
 </div>
 </div>
@@ -219,9 +338,9 @@ export default function Weather_Dashboard() {
 <div className="mt-4 pt-3 border-t border-outline-variant/30 flex items-center justify-between text-[11px] text-outline">
 <span className="flex items-center gap-1 font-medium">
 <span className="material-symbols-outlined text-[15px] text-primary">schedule</span>
-            Last Update : 03/05/2022 22:12:59
+            {weatherError ? 'Weather update failed' : `Last Update : ${lastUpdated ? lastUpdated.toLocaleString('en-GB', { timeZone: 'Asia/Colombo' }) : 'Loading…'}`}
           </span>
-<span className="text-emerald-600 font-bold uppercase tracking-wider text-[10px] bg-emerald-50 px-2 py-0.5 rounded">Synced</span>
+<span className={`${weatherError ? 'text-red-600 bg-red-50' : 'text-emerald-600 bg-emerald-50'} font-bold uppercase tracking-wider text-[10px] px-2 py-0.5 rounded`} title={weatherError || undefined}>{weatherError ? 'Offline' : weather ? 'Synced' : 'Loading'}</span>
 </div>
 </div>
 
@@ -231,10 +350,10 @@ export default function Weather_Dashboard() {
 <div className="col-span-12 md:col-span-4 bg-surface-container-lowest rounded-xl border border-[#E2E8F0] card-shadow card-hover p-5 flex items-center justify-between transition-all duration-200">
 <div>
 <span className="text-label-caps font-label-caps text-outline block uppercase tracking-wider">WIND SPEED</span>
-<div className="text-display-metric font-display-metric text-on-surface leading-tight mt-1">0.79</div>
+<div className="text-display-metric font-display-metric text-on-surface leading-tight mt-1">{weather ? weather.windSpeed.toFixed(1) : '—'}</div>
 <span className="text-xs text-outline font-medium block mt-1">IN km/h</span>
 <span className="text-[10px] text-emerald-600 font-semibold mt-2 inline-flex items-center gap-0.5">
-<span className="material-symbols-outlined text-[12px]">north_east</span> Calm Breeze
+<span className="material-symbols-outlined text-[12px]">north_east</span> {weather ? (weather.windSpeed < 2 ? 'Calm Breeze' : weather.windSpeed < 20 ? 'Light Breeze' : 'Strong Wind') : 'Loading'}
           </span>
 </div>
 
@@ -248,9 +367,9 @@ export default function Weather_Dashboard() {
 
 <div className="absolute inset-0 flex flex-col items-center justify-center">
 
-<div className="w-12 h-1 bg-red-500 rounded-full origin-right transform -rotate-[135deg] translate-x-[-12px]"></div>
+<div className="w-12 h-1 bg-red-500 rounded-full origin-right translate-x-[-12px]" style={{ transform: `rotate(${weather?.windDirection ?? 0}deg)` }}></div>
 <div className="w-3.5 h-3.5 rounded-full bg-red-600 border-2 border-white shadow-sm mt-[-9px]"></div>
-<span className="text-xs font-bold text-on-surface mt-2">0%</span>
+<span className="text-xs font-bold text-on-surface mt-2">{weather ? `${Math.round(weather.windDirection)}°` : '—'}</span>
 </div>
 </div>
 </div>
@@ -258,10 +377,10 @@ export default function Weather_Dashboard() {
 <div className="col-span-12 md:col-span-4 bg-surface-container-lowest rounded-xl border border-[#E2E8F0] card-shadow card-hover p-5 flex items-center justify-between transition-all duration-200">
 <div>
 <span className="text-label-caps font-label-caps text-outline block uppercase tracking-wider">HUMIDITY</span>
-<div className="text-display-metric font-display-metric text-on-surface leading-tight mt-1">95%</div>
+<div className="text-display-metric font-display-metric text-on-surface leading-tight mt-1">{weather ? `${Math.round(weather.humidity)}%` : '—'}</div>
 <span className="text-xs text-outline font-medium block mt-1">Atmospheric water Percentage</span>
 <span className="text-[10px] text-primary font-semibold mt-2 inline-flex items-center gap-0.5">
-<span className="material-symbols-outlined text-[12px]">water_drop</span> High Moisture
+<span className="material-symbols-outlined text-[12px]">water_drop</span> {weather ? (weather.humidity >= 70 ? 'High Moisture' : weather.humidity >= 40 ? 'Moderate Moisture' : 'Low Moisture') : 'Loading'}
           </span>
 </div>
 
@@ -270,11 +389,11 @@ export default function Weather_Dashboard() {
 
 <circle cx="50" cy="50" fill="none" r="40" stroke="#F1F5F9" stroke-width="7"></circle>
 
-<circle cx="50" cy="50" fill="none" r="40" stroke="#0284C7" stroke-dasharray="251.2" stroke-dashoffset="173.3" stroke-linecap="round" stroke-width="7"></circle>
+<circle cx="50" cy="50" fill="none" r="40" stroke="#0284C7" stroke-dasharray="251.2" stroke-dashoffset={weather ? 251.2 * (1 - weather.humidity / 100) : 251.2} stroke-linecap="round" stroke-width="7"></circle>
 </svg>
 
 <div className="absolute flex flex-col items-center justify-center text-center">
-<span className="text-sm font-bold text-primary">31%</span>
+<span className="text-sm font-bold text-primary">{weather ? `${Math.round(weather.humidity)}%` : '—'}</span>
 <span className="text-[9px] text-outline font-medium uppercase tracking-tight">Cap</span>
 </div>
 </div>
@@ -283,10 +402,10 @@ export default function Weather_Dashboard() {
 <div className="col-span-12 md:col-span-4 bg-surface-container-lowest rounded-xl border border-[#E2E8F0] card-shadow card-hover p-5 flex items-center justify-between transition-all duration-200">
 <div>
 <span className="text-label-caps font-label-caps text-outline block uppercase tracking-wider">AIR PRESSURE</span>
-<div className="text-display-metric font-display-metric text-on-surface leading-tight mt-1">1011</div>
+<div className="text-display-metric font-display-metric text-on-surface leading-tight mt-1">{weather ? Math.round(weather.pressure) : '—'}</div>
 <span className="text-xs text-outline font-medium block mt-1">millibars</span>
 <span className="text-[10px] text-tertiary-container font-semibold mt-2 inline-flex items-center gap-0.5">
-<span className="material-symbols-outlined text-[12px]">compress</span> Standard Atmospheric
+<span className="material-symbols-outlined text-[12px]">compress</span> {weather ? (weather.pressure < 1000 ? 'Low Atmospheric' : weather.pressure > 1020 ? 'High Atmospheric' : 'Standard Atmospheric') : 'Loading'}
           </span>
 </div>
 
@@ -295,11 +414,11 @@ export default function Weather_Dashboard() {
 
 <circle cx="50" cy="50" fill="none" r="40" stroke="#F1F5F9" stroke-width="7"></circle>
 
-<circle cx="50" cy="50" fill="none" r="40" stroke="#004AC6" stroke-dasharray="251.2" stroke-dashoffset="173.3" stroke-linecap="round" stroke-width="7"></circle>
+<circle cx="50" cy="50" fill="none" r="40" stroke="#004AC6" stroke-dasharray="251.2" stroke-dashoffset={weather ? 251.2 * (1 - pressureScale / 100) : 251.2} stroke-linecap="round" stroke-width="7"></circle>
 </svg>
 
 <div className="absolute flex flex-col items-center justify-center text-center">
-<span className="text-sm font-bold text-primary">31%</span>
+<span className="text-sm font-bold text-primary">{weather ? `${Math.round(pressureScale)}%` : '—'}</span>
 <span className="text-[9px] text-outline font-medium uppercase tracking-tight">Baro</span>
 </div>
 </div>
