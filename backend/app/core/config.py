@@ -12,6 +12,7 @@ class Settings(BaseSettings):
 
     DATABASE_URL: str
     SECRET_KEY: str
+    CHROMA_PERSIST_DIRECTORY: Path = Path(__file__).resolve().parent.parent / "chroma_data"
 
     # JWT Settings
     ALGORITHM: str = "HS256"

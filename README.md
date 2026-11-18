@@ -3,7 +3,7 @@
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![React](https://img.shields.io/badge/Frontend-React_19-61DAFB.svg?logo=react&logoColor=black)](https://react.dev/)
 [![Vite](https://img.shields.io/badge/Bundler-Vite_8-646CFF.svg?logo=vite&logoColor=white)](https://vitejs.dev/)
-[![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL_+_pgvector-336791.svg?logo=postgresql&logoColor=white)](https://github.com/pgvector/pgvector)
+[![Database](https://img.shields.io/badge/Database-PostgreSQL_+_ChromaDB-336791.svg?logo=postgresql&logoColor=white)](https://www.trychroma.com/)
 [![Gemini](https://img.shields.io/badge/AI-Google_Gemini-4285F4.svg?logo=google&logoColor=white)](https://ai.google.dev/)
 [![YOLOv8](https://img.shields.io/badge/Vision_AI-YOLOv8-FF6F00.svg)](https://ultralytics.com/)
 
@@ -41,7 +41,8 @@ graph TD
     end
 
     subgraph Storage ["Database & Storage"]
-        PG[("PostgreSQL 16 + pgvector")]
+        PG[("PostgreSQL 16 (application data)")]
+        Chroma[("ChromaDB (document vectors)")]
         StaticFiles["Local File Storage (/static)"]
     end
 
@@ -71,7 +72,9 @@ graph TD
     SensorSvc --> PG
     VisionSvc --> PG
     RAGSvc --> PG
+    RAGSvc --> Chroma
     ChatSvc --> PG
+    ChatSvc --> Chroma
 ```
 
 ---
@@ -93,11 +96,12 @@ graph TD
 4. **📚 RAG (Retrieval-Augmented Generation) Knowledge Base**:
    - Upload agricultural manuals, research papers, and guides (PDF, Word, Text).
    - Automated text extraction and technical synthesis powered by Google Gemini.
-   - Semantic text chunking and 768-dimensional vector embedding storage directly inside PostgreSQL using `pgvector`.
+   - Semantic text chunking and 768-dimensional Gemini embeddings stored persistently in ChromaDB.
 
 5. **🤖 Context-Aware Agronomic Chatbot**:
    - Uses LangChain's `ChatGoogleGenerativeAI` with Gemini `gemini-3.1-flash-lite` to generate answers from the authenticated user's retrieved knowledge-base documents, sensor readings, and disease detections.
-   - Keeps user-scoped PostgreSQL/pgvector semantic search (`<=>` cosine distance); query embeddings continue using `gemini-embedding-2` to remain compatible with stored document vectors.
+   - Uses user-scoped ChromaDB cosine similarity search; Gemini `gemini-embedding-2` creates both document and query embeddings.
+   - PostgreSQL remains the source of document ownership and metadata. Existing pgvector embeddings are migrated into ChromaDB at backend startup.
    - Disease guidance is grounded in retrieved sources, while detection history and sensor readings remain scoped to the authenticated user.
 
 6. **🔒 Security & Authentication**:
@@ -110,7 +114,7 @@ graph TD
 ```
 Agriculture_Platform/
 ├── .env                       # Root environment configuration
-├── docker-compose.yml         # PostgreSQL with pgvector container setup
+├── docker-compose.yml         # PostgreSQL and persistent ChromaDB storage
 ├── README.md                  # Project documentation
 │
 ├── backend/                   # FastAPI Backend
@@ -172,7 +176,7 @@ Agriculture_Platform/
 
 Before running the project, make sure you have installed:
 
-- **Docker Desktop** (or Docker Engine + Docker Compose) for PostgreSQL with `pgvector`.
+- **Docker Desktop** (or Docker Engine + Docker Compose) for PostgreSQL and persistent ChromaDB storage.
 - **Python 3.10+** (tested with Python 3.12 / 3.13; on Windows, use `py` or `python`).
 - **Node.js 18+** & **npm** (for the React client).
 - **Google Gemini API Key** ([Get a key from Google AI Studio](https://aistudio.google.com/)).
@@ -212,9 +216,9 @@ GEMINI_API_KEY=your_gemini_api_key_here
 
 ---
 
-### Step 3: Start PostgreSQL with `pgvector`
+### Step 3: Start PostgreSQL
 
-The application requires PostgreSQL with `pgvector` extension support. Use Docker Compose to start it:
+Use Docker Compose to start PostgreSQL:
 
 ```bash
 docker compose up -d postgres
@@ -224,12 +228,7 @@ docker compose up -d postgres
 > ```bash
 > docker ps
 > ```
-> The container `agriai_postgres` will be listening on port `54320`.
-
-*(Optional)* If initializing manually or verifying the `vector` extension, run:
-```bash
-docker exec -it agriai_postgres psql -U agriai -d agriai -c "CREATE EXTENSION IF NOT EXISTS vector;"
-```
+> The container `agriai_postgres` will be listening on port `54320`. ChromaDB runs embedded in the backend and persists its collection in the `chroma_data` Docker volume. The compose image retains pgvector support only so existing installations can migrate their legacy vectors.
 
 ---
 
@@ -265,9 +264,9 @@ docker exec -it agriai_postgres psql -U agriai -d agriai -c "CREATE EXTENSION IF
    ```
 
    > **Note on AI & Computer Vision dependencies**:
-   > Ensure `pgvector`, `ultralytics`, and `opencv-python` are installed for the vision and vector search services:
+   > Ensure `ultralytics` and `opencv-python` are installed for the vision services:
    > ```bash
-   > pip install pgvector ultralytics opencv-python
+   > pip install ultralytics opencv-python
    > ```
 
 4. **Start the FastAPI backend server**:
@@ -488,18 +487,9 @@ Upload a leaf image to execute YOLOv8 inference, draw bounding boxes, and save d
 ### 6. AI Hydroponic Assistant (`/api/chat`)
 
 #### `POST /api/chat/`
-<<<<<<< HEAD
-Submit a question to the authenticated user's conversational assistant. The endpoint retrieves relevant chunks from the user's knowledge base, then adds sensor data and disease detections when relevant. Chat generation uses `gemini-3.1-flash-lite`, with `gemini-embedding-2` used for query embeddings.
+Submit a question to the authenticated user's conversational assistant. Answers are always in French. The endpoint embeds the question with Gemini (`gemini-embedding-2`), retrieves relevant user-owned chunks from ChromaDB, and uses those chunks as the source for agricultural guidance. Sensor readings and disease detections continue to come from PostgreSQL when relevant. If the uploaded knowledge base does not contain relevant information, the assistant should say so rather than fill gaps from general knowledge.
 
 Disease-treatment answers are organized into Markdown sections and only state treatment details supported by retrieved documents. Requests to see disease detection images return the authenticated user's detection records; when a disease is named, the image results are filtered to that disease. General detection-image requests return the full history. Sensor questions include the user's sensor history for tabular display.
-=======
-Submit a question to the conversational AI. The engine performs:
-1. Embedding of the query via Gemini (`gemini-embedding-001`).
-2. Vector similarity search (`pgvector`) against indexed knowledge base chunks.
-3. Live fetch of the user's latest IoT sensor readings (pH, TDS, water temp, level).
-4. Live fetch of the user's latest YOLO disease detection result.
-5. Contextual synthesis using Gemini (`gemini-3.1-flash-lite`).
->>>>>>> origin/main
 
 - **Request Body** (`application/json`):
   ```json
@@ -563,11 +553,7 @@ Submit a question to the conversational AI. The engine performs:
 ### 7. Knowledge Base & Document Ingestion (`/api/documents`)
 
 #### `POST /api/documents/documents/upload-ai`
-<<<<<<< HEAD
-Upload a technical PDF or agronomy manual. The file is extracted using Gemini (`gemini-3.1-flash-lite`), split into overlapping chunks, embedded via Gemini embeddings, and stored in PostgreSQL using `pgvector`.
-=======
-Upload a technical PDF or agronomy manual. The file is extracted using Gemini (`gemini-3.8-flash`), split into overlapping chunks, embedded via Gemini embeddings, and stored in PostgreSQL using `pgvector`.
->>>>>>> origin/main
+Upload a technical PDF or agronomy manual. The file is extracted using Gemini (`gemini-3.1-flash-lite`), split into overlapping chunks, embedded via Gemini embeddings, and stored in ChromaDB. PostgreSQL stores the document metadata and ownership information.
 - **Request Format**: `multipart/form-data`
 - **Form Fields**:
   - `user_id` (UUID, required): Owner of the document
@@ -661,12 +647,9 @@ The shared Axios client is configured in `client/src/services/app.js` and attach
 |---|---|
 | **Frontend** | React 19, Vite 8, React Router v7, TailwindCSS v4 |
 | **Backend API** | FastAPI, Uvicorn, Pydantic v2, Python-Jose (JWT), Passlib (bcrypt) |
-| **Database & ORM** | PostgreSQL 16, pgvector, SQLAlchemy 2.0, asyncpg, psycopg |
-<<<<<<< HEAD
+| **Database & ORM** | PostgreSQL 16, SQLAlchemy 2.0, asyncpg, psycopg |
+| **Vector Database** | ChromaDB (persistent local collection) |
 | **Artificial Intelligence** | Google Gemini SDK (`gemini-3.1-flash-lite`, `gemini-embedding-2`), YOLOv8 (`ultralytics`), OpenCV |
-=======
-| **Artificial Intelligence** | Google Gemini SDK (`gemini-3.1-flash-lite`, `gemini-3.8-flash`, `gemini-embedding-001`), YOLOv8 (`ultralytics`), OpenCV |
->>>>>>> origin/main
 | **Containerization** | Docker, Docker Compose |
 
 ---

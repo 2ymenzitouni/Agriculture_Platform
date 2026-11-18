@@ -2,6 +2,19 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import LogoutButton from '../components/LogoutButton';
 import API from '../services/app';
+import {
+  asksForAllDiseaseDetections,
+  asksForDetectionHistory,
+  DISEASE_CHART_COLORS,
+  getDiseaseChartGradient,
+  getDiseaseDistribution,
+  normalizeChatText,
+} from '../utils/diseaseDetectionChart';
+import {
+  asksForSensorChart,
+  getSensorChartValues,
+  SENSOR_CHART_COLORS,
+} from '../utils/sensorReadingsChart';
 
 const sensorMetrics = [
   { key: 'ph', label: 'pH', unit: '' },
@@ -14,16 +27,24 @@ const sensorMetrics = [
 ];
 
 function getRequestedSensorMetrics(question) {
-  const normalizedQuestion = question.toLowerCase();
+  const normalizedQuestion = normalizeChatText(question);
   const metrics = sensorMetrics.filter(({ key, label }) => {
     const terms = {
       ph: [/\bp\s*h\b|\bph\b/],
       tds: [/\btds\b/],
-      temperature: [/\bair temperature\b/, /\btemperature\b(?!\s*(?:of|in)\s*water)/],
-      humidity: [/\bhumidity\b/],
-      water_temperature: [/\bwater temperature\b/, /\btemperature of (?:the )?water\b/],
-      water_level: [/\bwater level\b/],
-      light: [/\blight\b/, /\blux\b/],
+      temperature: [
+        /\bair temperature\b/,
+        /\btemperature (?:of (?:the )?air|de l air)\b/,
+        /\btemperature\b(?!\s*(?:(?:of|in)\s*(?:the\s*)?water|de\s*(?:l\s*)?eau))/,
+      ],
+      humidity: [/\bhumidity\b/, /\bhumidite\b/],
+      water_temperature: [
+        /\bwater temperature\b/,
+        /\btemperature of (?:the )?water\b/,
+        /\btemperature de l eau\b/,
+      ],
+      water_level: [/\bwater level\b/, /\bniveau d eau\b/],
+      light: [/\blight\b/, /\blux\b/, /\blumiere\b/],
     }[key];
     return terms.some((term) => term.test(normalizedQuestion)) || normalizedQuestion.includes(label.toLowerCase());
   });
@@ -31,8 +52,8 @@ function getRequestedSensorMetrics(question) {
   if (metrics.length > 0) return metrics;
 
   const asksAboutSensorData =
-    /\b(current|currently|latest|now|sensor|reading|measurement)\b/.test(normalizedQuestion)
-    || /\bmy\b/.test(normalizedQuestion);
+    /\b(current|currently|latest|now|sensor|reading|measurement|capteur|releve|mesure|lecture|actuel|actuellement|maintenant|dernier)\w*\b/.test(normalizedQuestion)
+    || /\b(my|mon|ma|mes)\b/.test(normalizedQuestion);
   return asksAboutSensorData ? sensorMetrics : [];
 }
 
@@ -44,17 +65,193 @@ function formatReadingTimestamp(timestamp) {
     : parsedTimestamp.toLocaleString();
 }
 
-function asksForDetectionHistory(question) {
-  return /\b(detect\w*|diagnos\w*|image\w*|photo\w*|picture\w*|history|record\w*|found|seen)\b/i.test(question)
-    && /\b(disease\w*|detect\w*|image\w*|photo\w*|picture\w*|diagnos\w*|infection\w*|infected|sick|blight|spot|mildew|mosaic|rust|rot|wilt|canker|scab|septoria|anthracnose|target)\b/i.test(question);
-}
-
 function getDetectionImageUrl(imagePath) {
   if (!imagePath) return '';
   return new URL(
     imagePath,
     new URL(API.defaults.baseURL, window.location.origin),
   ).toString();
+}
+
+function formatChatTime(timestamp) {
+  if (!timestamp) return '';
+  const parsedTimestamp = new Date(timestamp);
+  return Number.isNaN(parsedTimestamp.getTime())
+    ? ''
+    : parsedTimestamp.toLocaleTimeString([], {
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+}
+
+function formatSessionTime(session) {
+  const timestamp = session.last_message_at ?? session.created_at;
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return '';
+
+  const now = new Date();
+  if (date.toDateString() === now.toDateString()) return formatChatTime(timestamp);
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+  return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+}
+
+function isRecentSession(session) {
+  const timestamp = session.last_message_at ?? session.created_at;
+  const date = new Date(timestamp);
+  return !Number.isNaN(date.getTime())
+    && Date.now() - date.getTime() < 24 * 60 * 60 * 1000;
+}
+
+function mapStoredChatMessage(message) {
+  const details = message.details ?? {};
+  const userMessage = details.user_message ?? '';
+  return {
+    id: message.id,
+    role: message.role,
+    content: message.content,
+    sources: details.sources ?? [],
+    sensorSnapshot: details.sensor_snapshot ?? {},
+    sensorReadings: details.sensor_readings ?? [],
+    sensorChartReadings: details.sensor_chart_readings ?? [],
+    sensorMetrics: getRequestedSensorMetrics(userMessage),
+    showSensorChart: asksForSensorChart(userMessage),
+    diseaseDetections: details.disease_detections ?? [],
+    showDiseaseDetections: asksForDetectionHistory(userMessage),
+    showDiseaseChart: asksForAllDiseaseDetections(userMessage),
+    time: formatChatTime(message.created_at),
+  };
+}
+
+function SensorReadingsLineCharts({ readings, metrics }) {
+  const metricSeries = metrics
+    .map((metric) => ({
+      metric,
+      values: getSensorChartValues(readings, metric.key),
+    }))
+    .filter(({ values }) => values.length > 0);
+
+  return (
+    <section className="space-y-4 rounded-xl border border-outline-variant/40 p-4">
+      <h3 className="text-label-sm font-label-sm font-semibold text-on-surface">
+        Évolution des relevés capteurs
+      </h3>
+      {readings.length === 0 ? (
+        <p className="text-label-sm font-label-sm text-on-surface-variant">
+          Aucun relevé de capteur disponible pour tracer une courbe.
+        </p>
+      ) : metricSeries.length === 0 ? (
+        <p className="text-label-sm font-label-sm text-on-surface-variant">
+          Aucun relevé numérique disponible pour les mesures demandées.
+        </p>
+      ) : metricSeries.map(({ metric, values }, metricIndex) => {
+        if (values.length < 2) {
+          return (
+            <div className="rounded-lg bg-surface-container-low p-3" key={metric.key}>
+              <p className="font-semibold text-on-surface">{metric.label}</p>
+              <p className="text-label-sm font-label-sm text-on-surface-variant">
+                Un seul relevé est disponible ({values[0].value}{metric.unit ? ` ${metric.unit}` : ''}) ;
+                il en faut au moins deux pour tracer une courbe.
+              </p>
+            </div>
+          );
+        }
+
+        const rawMin = Math.min(...values.map(({ value }) => value));
+        const rawMax = Math.max(...values.map(({ value }) => value));
+        const padding = rawMin === rawMax
+          ? Math.max(Math.abs(rawMin) * 0.05, 1)
+          : (rawMax - rawMin) * 0.1;
+        const min = rawMin - padding;
+        const max = rawMax + padding;
+        const width = 640;
+        const height = 220;
+        const left = 54;
+        const right = 624;
+        const top = 18;
+        const bottom = 184;
+        const points = values.map(({ value }, index) => {
+          const x = left + (index / (values.length - 1)) * (right - left);
+          const y = top + ((max - value) / (max - min)) * (bottom - top);
+          return { x, y };
+        });
+        const linePoints = points.map(({ x, y }) => `${x},${y}`).join(' ');
+        const color = SENSOR_CHART_COLORS[metricIndex % SENSOR_CHART_COLORS.length];
+        const gridValues = [max, (max + min) / 2, min];
+
+        return (
+          <div className="rounded-lg bg-surface-container-low p-3" key={metric.key}>
+            <p className="font-semibold text-on-surface">
+              {metric.label}{metric.unit ? ` (${metric.unit})` : ''}
+            </p>
+            <svg
+              aria-label={`Évolution de ${metric.label}, de ${values[0].value} à ${values[values.length - 1].value}, sur ${values.length} relevés`}
+              className="mt-2 h-52 w-full"
+              role="img"
+              viewBox={`0 0 ${width} ${height}`}
+            >
+              {gridValues.map((value, index) => {
+                const y = top + (index / (gridValues.length - 1)) * (bottom - top);
+                return (
+                  <g key={`${metric.key}-grid-${index}`}>
+                    <line
+                      opacity="0.25"
+                      stroke="#64748b"
+                      strokeWidth="1"
+                      x1={left}
+                      x2={right}
+                      y1={y}
+                      y2={y}
+                    />
+                    <text
+                      fill="#64748b"
+                      fontSize="12"
+                      textAnchor="end"
+                      x={left - 8}
+                      y={y + 4}
+                    >
+                      {value.toFixed(1)}
+                    </text>
+                  </g>
+                );
+              })}
+              <polyline
+                fill="none"
+                points={linePoints}
+                stroke={color}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="3"
+              />
+              {points.map(({ x, y }, index) => {
+                const point = values[index];
+                const pointDescription = `${metric.label} : ${point.value}${metric.unit ? ` ${metric.unit}` : ''} — ${formatReadingTimestamp(point.timestamp)}`;
+                return (
+                  <circle
+                    aria-label={pointDescription}
+                    className="cursor-pointer"
+                    cx={x}
+                    cy={y}
+                    fill={color}
+                    key={`${metric.key}-point-${index}`}
+                    r="5"
+                    tabIndex={0}
+                  >
+                    <title>{pointDescription}</title>
+                  </circle>
+                );
+              })}
+            </svg>
+            <div className="flex justify-between gap-3 text-label-sm font-label-sm text-on-surface-variant">
+              <span>{formatReadingTimestamp(values[0].timestamp)}</span>
+              <span>{formatReadingTimestamp(values[values.length - 1].timestamp)}</span>
+            </div>
+          </div>
+        );
+      })}
+    </section>
+  );
 }
 
 function splitAnswerIntoSections(answer) {
@@ -240,69 +437,300 @@ function StructuredAnswerCards({ answer }) {
   );
 }
 
+function DiseaseDetectionPieChart({ detections }) {
+  const distribution = getDiseaseDistribution(detections);
+  if (distribution.length === 0) return null;
+
+  const total = detections.length;
+  const chartDescription = distribution
+    .map(({ disease, proportion }) => `${disease} : ${(proportion * 100).toFixed(1)} %`)
+    .join(', ');
+
+  return (
+    <div className="grid gap-4 border-t border-outline-variant/30 p-4 sm:grid-cols-[auto_1fr] sm:items-center">
+      <div
+        aria-label={`Répartition des maladies détectées : ${chartDescription}`}
+        className="mx-auto h-40 w-40 rounded-full"
+        role="img"
+        style={{ background: getDiseaseChartGradient(distribution) }}
+      />
+      <div className="space-y-3">
+        <p className="text-label-sm font-label-sm font-semibold text-on-surface">
+          Proportions sur {total} détections
+        </p>
+        <ul className="grid gap-2 sm:grid-cols-2">
+          {distribution.map((entry, index) => (
+            <li className="flex items-center justify-between gap-3 text-label-sm font-label-sm" key={entry.disease}>
+              <span className="flex min-w-0 items-center gap-2 text-on-surface-variant">
+                <span
+                  aria-hidden="true"
+                  className="h-3 w-3 shrink-0 rounded-sm"
+                  style={{
+                    backgroundColor: DISEASE_CHART_COLORS[index % DISEASE_CHART_COLORS.length],
+                  }}
+                />
+                <span className="truncate">{entry.disease}</span>
+              </span>
+              <span className="shrink-0 font-semibold text-on-surface">
+                {entry.count} ({(entry.proportion * 100).toFixed(1)}%)
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
 export default function AI_Telemetry() {
   const [message, setMessage] = useState('');
   const [chatMessages, setChatMessages] = useState([]);
+  const [chatSessions, setChatSessions] = useState([]);
+  const [activeSessionId, setActiveSessionId] = useState(null);
+  const [sessionSearch, setSessionSearch] = useState('');
+  const [isLoadingSessions, setIsLoadingSessions] = useState(true);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  const [isCreatingSession, setIsCreatingSession] = useState(false);
+  const [sessionError, setSessionError] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [chatError, setChatError] = useState('');
   const chatEndRef = useRef(null);
+  const sessionLoadRef = useRef(0);
+  const activeSession = chatSessions.find((session) => session.id === activeSessionId);
+  const normalizedSessionSearch = normalizeChatText(sessionSearch.trim());
+  const filteredChatSessions = chatSessions.filter((session) => (
+    !normalizedSessionSearch
+    || normalizeChatText(`${session.title} ${session.preview ?? ''}`)
+      .includes(normalizedSessionSearch)
+  ));
+  const recentChatSessions = filteredChatSessions.filter(isRecentSession);
+  const previousChatSessions = filteredChatSessions.filter((session) => !isRecentSession(session));
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages, isSending, chatError]);
 
+  useEffect(() => {
+    let isActive = true;
+
+    async function loadSessions() {
+      try {
+        const { data: sessions } = await API.get('/chat/sessions');
+        if (!isActive) return;
+        setChatSessions(sessions);
+        if (sessions.length > 0) {
+          setActiveSessionId(sessions[0].id);
+          setIsLoadingMessages(true);
+          const { data: storedMessages } = await API.get(
+            `/chat/sessions/${sessions[0].id}/messages`,
+          );
+          if (!isActive) return;
+          setChatMessages(storedMessages.map(mapStoredChatMessage));
+        }
+      } catch (error) {
+        if (isActive) {
+          setSessionError(
+            error.response?.data?.detail
+            ?? 'Unable to load your chat sessions. Please try again.',
+          );
+        }
+      } finally {
+        if (isActive) {
+          setIsLoadingSessions(false);
+          setIsLoadingMessages(false);
+        }
+      }
+    }
+
+    loadSessions();
+    return () => {
+      isActive = false;
+      sessionLoadRef.current += 1;
+    };
+  }, []);
+
+  async function createChatSession() {
+    if (isCreatingSession) return null;
+    setIsCreatingSession(true);
+    sessionLoadRef.current += 1;
+    setIsLoadingMessages(false);
+    setSessionError('');
+    try {
+      const { data: newSession } = await API.post('/chat/sessions', {});
+      setChatSessions((sessions) => [newSession, ...sessions]);
+      setActiveSessionId(newSession.id);
+      setChatMessages([]);
+      setChatError('');
+      sessionLoadRef.current += 1;
+      return newSession;
+    } catch (error) {
+      setSessionError(
+        error.response?.data?.detail
+        ?? 'Unable to create a new chat session. Please try again.',
+      );
+      return null;
+    } finally {
+      setIsCreatingSession(false);
+    }
+  }
+
+  async function openChatSession(sessionId) {
+    if (sessionId === activeSessionId || isSending || isLoadingMessages) return;
+    const requestId = sessionLoadRef.current + 1;
+    sessionLoadRef.current = requestId;
+    setActiveSessionId(sessionId);
+    setChatMessages([]);
+    setChatError('');
+    setSessionError('');
+    setIsLoadingMessages(true);
+    try {
+      const { data: storedMessages } = await API.get(
+        `/chat/sessions/${sessionId}/messages`,
+      );
+      if (requestId === sessionLoadRef.current) {
+        setChatMessages(storedMessages.map(mapStoredChatMessage));
+      }
+    } catch (error) {
+      if (requestId === sessionLoadRef.current) {
+        setSessionError(
+          error.response?.data?.detail
+          ?? 'Unable to load this conversation. Please try again.',
+        );
+      }
+    } finally {
+      if (requestId === sessionLoadRef.current) setIsLoadingMessages(false);
+    }
+  }
+
   async function handleSubmit(event) {
     event.preventDefault();
     const userMessage = message.trim();
-    if (!userMessage || isSending) return;
+    if (
+      !userMessage
+      || isSending
+      || isCreatingSession
+      || isLoadingMessages
+      || isLoadingSessions
+    ) return;
 
-    setChatMessages((currentMessages) => [
-      ...currentMessages,
-      {
-        role: 'user',
-        content: userMessage,
-        time: new Date().toLocaleTimeString([], {
-          hour: 'numeric',
-          minute: '2-digit',
-        }),
-      },
-    ]);
     setMessage('');
     setChatError('');
     setIsSending(true);
 
     try {
+      let sessionId = activeSessionId;
+      if (!sessionId) {
+        const newSession = await createChatSession();
+        if (!newSession) return;
+        sessionId = newSession.id;
+      }
+      const userMessageTime = new Date().toISOString();
+      setChatMessages((currentMessages) => [
+        ...currentMessages,
+        {
+          role: 'user',
+          content: userMessage,
+          time: formatChatTime(userMessageTime),
+        },
+      ]);
+      setChatSessions((sessions) => {
+        const existing = sessions.find((session) => session.id === sessionId);
+        const updatedSession = {
+          ...existing,
+          id: sessionId,
+          title: existing?.title === 'New Chat Session'
+            ? userMessage.slice(0, 80)
+            : existing?.title ?? userMessage.slice(0, 80),
+          preview: userMessage,
+          message_count: (existing?.message_count ?? 0) + 1,
+          last_message_at: userMessageTime,
+        };
+        return [
+          updatedSession,
+          ...sessions.filter((session) => session.id !== sessionId),
+        ];
+      });
       const { data } = await API.post('/chat/', {
-        session_id: 1,
+        session_id: sessionId,
         message: userMessage,
       });
       setChatMessages((currentMessages) => [
         ...currentMessages,
-        {
+        mapStoredChatMessage({
           role: 'assistant',
           content: data.answer,
-          sources: data.sources_used ?? [],
-          sensorSnapshot: data.sensor_snapshot ?? {},
-          sensorReadings: data.sensor_readings ?? [],
-          sensorMetrics: getRequestedSensorMetrics(userMessage),
-          diseaseDetections: data.disease_detections ?? [],
-          showDiseaseDetections: asksForDetectionHistory(userMessage),
-          time: new Date().toLocaleTimeString([], {
-            hour: 'numeric',
-            minute: '2-digit',
-          }),
-        },
+          details: {
+            user_message: userMessage,
+            sources: data.sources_used ?? [],
+            sensor_snapshot: data.sensor_snapshot ?? {},
+            sensor_readings: data.sensor_readings ?? [],
+            sensor_chart_readings: data.sensor_chart_readings ?? [],
+            disease_detections: data.disease_detections ?? [],
+          },
+          created_at: new Date().toISOString(),
+        }),
       ]);
+      const sentAt = new Date().toISOString();
+      setChatSessions((sessions) => {
+        const existing = sessions.find((session) => session.id === sessionId);
+        const updatedSession = {
+          ...existing,
+          id: sessionId,
+          title: existing?.title ?? userMessage.slice(0, 80),
+          preview: data.answer,
+          message_count: (existing?.message_count ?? 0) + 1,
+          last_message_at: sentAt,
+        };
+        return [
+          updatedSession,
+          ...sessions.filter((session) => session.id !== sessionId),
+        ];
+      });
     } catch (error) {
       const detail = error.response?.data?.detail;
       setChatError(
         typeof detail === 'string'
           ? detail
-          : 'Unable to get an answer right now. Please try again.',
+          : 'Impossible d’obtenir une réponse pour le moment. Veuillez réessayer.',
       );
     } finally {
       setIsSending(false);
     }
+  }
+
+  function renderChatSession(session) {
+    const isActive = session.id === activeSessionId;
+    return (
+      <button
+        className={isActive
+          ? 'w-full p-3 rounded-xl bg-surface-container/70 border border-primary/20 cursor-pointer flex flex-col gap-1 text-left transition-all'
+          : 'w-full p-3 rounded-xl hover:bg-surface-container-low border border-transparent cursor-pointer flex flex-col gap-1 text-left transition-all group'}
+        disabled={isSending || isLoadingMessages}
+        key={session.id}
+        onClick={() => openChatSession(session.id)}
+        type="button"
+      >
+        <span className="flex items-center justify-between gap-2">
+          <span className={`font-label-md font-semibold truncate ${isActive ? 'text-primary' : 'text-on-surface group-hover:text-primary'}`}>
+            {session.title}
+          </span>
+          {isActive && <span className="w-2 h-2 rounded-full bg-tertiary shrink-0" />}
+          {!isActive && (
+            <span className="text-label-sm font-label-sm text-outline shrink-0">
+              {formatSessionTime(session)}
+            </span>
+          )}
+        </span>
+        <span className="font-body-md text-label-sm text-on-surface-variant line-clamp-1">
+          {session.preview || 'No messages yet'}
+        </span>
+        <span className="flex items-center gap-2 text-label-sm font-label-sm text-outline mt-0.5">
+          <span className="material-symbols-outlined text-[14px]">forum</span>
+          {session.message_count || 0} msgs
+          {isActive && <span>{formatSessionTime(session)}</span>}
+        </span>
+      </button>
+    );
   }
 
   return (
@@ -391,7 +819,13 @@ export default function AI_Telemetry() {
               <span className="material-symbols-outlined text-primary text-[20px]">forum</span>
               <h2 className="font-headline-md text-headline-md text-on-surface">Conversations</h2>
             </div>
-            <button className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-surface-container-low text-primary hover:bg-surface-container text-label-md font-label-md transition-colors" title="Start new diagnostics chat">
+            <button
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-surface-container-low text-primary hover:bg-surface-container text-label-md font-label-md transition-colors disabled:opacity-50"
+              disabled={isCreatingSession || isLoadingSessions || isLoadingMessages || isSending}
+              onClick={createChatSession}
+              title="Start new diagnostics chat"
+              type="button"
+            >
               <span className="material-symbols-outlined text-[16px]">add</span>
               New Chat
             </button>
@@ -400,65 +834,45 @@ export default function AI_Telemetry() {
           <div className="px-4 py-2">
             <div className="relative">
               <span className="material-symbols-outlined absolute left-2.5 top-2 text-outline text-[16px]">search</span>
-              <input className="w-full bg-surface-container-low border border-outline-variant/30 rounded-lg pl-8 pr-3 py-1.5 text-label-sm font-label-sm text-on-surface focus:outline-none focus:border-primary" placeholder="Search sessions..." type="text" />
+              <input
+                className="w-full bg-surface-container-low border border-outline-variant/30 rounded-lg pl-8 pr-3 py-1.5 text-label-sm font-label-sm text-on-surface focus:outline-none focus:border-primary"
+                onChange={(event) => setSessionSearch(event.target.value)}
+                placeholder="Search sessions..."
+                type="text"
+                value={sessionSearch}
+              />
             </div>
           </div>
 
           <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1">
             <span className="text-label-caps font-label-caps text-outline px-2 tracking-wider">ACTIVE &amp; RECENT</span>
-
-            <div className="p-3 rounded-xl bg-surface-container/70 border border-primary/20 cursor-pointer flex flex-col gap-1 transition-all">
-              <div className="flex items-center justify-between">
-                <span className="font-label-md font-semibold text-primary truncate">Anomaly check on Tank B</span>
-                <span className="w-2 h-2 rounded-full bg-tertiary"></span>
-              </div>
-              <p className="font-body-md text-label-sm text-on-surface-variant line-clamp-1">Telemetry alert: thermal runaway threshold...</p>
-              <div className="flex items-center gap-2 text-label-sm font-label-sm text-outline mt-0.5">
-                <span className="material-symbols-outlined text-[14px]">cloud_download</span>
-                Just now • 12 msgs
-              </div>
-            </div>
-
-            <div className="p-3 rounded-xl hover:bg-surface-container-low border border-transparent cursor-pointer flex flex-col gap-1 transition-all group">
-              <div className="flex items-center justify-between">
-                <span className="font-label-md font-semibold text-on-surface group-hover:text-primary truncate">Weather forecast summary</span>
-                <span className="text-label-sm font-label-sm text-outline">10:45 AM</span>
-              </div>
-              <p className="font-body-md text-label-sm text-on-surface-variant line-clamp-1">Atmospheric humidity vs. condensation model...</p>
-              <div className="flex items-center gap-2 text-label-sm font-label-sm text-outline mt-0.5">
-                <span className="material-symbols-outlined text-[14px]">cloud</span>
-                4 nodes verified
-              </div>
-            </div>
-
-            <div className="p-3 rounded-xl hover:bg-surface-container-low border border-transparent cursor-pointer flex flex-col gap-1 transition-all group">
-              <div className="flex items-center justify-between">
-                <span className="font-label-md font-semibold text-on-surface group-hover:text-primary truncate">pH balance calibration</span>
-                <span className="text-label-sm font-label-sm text-outline">Yesterday</span>
-              </div>
-              <p className="font-body-md text-label-sm text-on-surface-variant line-clamp-1">Electrode buffer offset aligned to 6.84...</p>
-              <div className="flex items-center gap-2 text-label-sm font-label-sm text-outline mt-0.5">
-                <span className="material-symbols-outlined text-[14px]">biotech</span>
-                Sensor Probe #04
-              </div>
-            </div>
-            <span className="text-label-caps font-label-caps text-outline px-2 tracking-wider pt-3 block">PREVIOUS DAYS</span>
-
-            <div className="p-3 rounded-xl hover:bg-surface-container-low border border-transparent cursor-pointer flex flex-col gap-1 transition-all group">
-              <div className="flex items-center justify-between">
-                <span className="font-label-md font-semibold text-on-surface group-hover:text-primary truncate">Hydraulic valve pressure drop</span>
-                <span className="text-label-sm font-label-sm text-outline">Mar 22</span>
-              </div>
-              <p className="font-body-md text-label-sm text-on-surface-variant line-clamp-1">Flow velocity reduced below 1.2 m/s safely...</p>
-            </div>
-
-            <div className="p-3 rounded-xl hover:bg-surface-container-low border border-transparent cursor-pointer flex flex-col gap-1 transition-all group">
-              <div className="flex items-center justify-between">
-                <span className="font-label-md font-semibold text-on-surface group-hover:text-primary truncate">Turbine 02 vibration harmonics</span>
-                <span className="text-label-sm font-label-sm text-outline">Mar 19</span>
-              </div>
-              <p className="font-body-md text-label-sm text-on-surface-variant line-clamp-1">Spectral frequency peaks within zone 2 tolerance...</p>
-            </div>
+            {sessionError && (
+              <p className="px-2 py-2 text-label-sm font-label-sm text-error" role="alert">
+                {sessionError}
+              </p>
+            )}
+            {isLoadingSessions ? (
+              <p className="px-2 py-3 text-label-sm font-label-sm text-outline">Loading sessions…</p>
+            ) : (
+              <>
+                {recentChatSessions.map(renderChatSession)}
+                {previousChatSessions.length > 0 && (
+                  <>
+                    <span className="text-label-caps font-label-caps text-outline px-2 tracking-wider pt-3 block">
+                      PREVIOUS DAYS
+                    </span>
+                    {previousChatSessions.map(renderChatSession)}
+                  </>
+                )}
+                {filteredChatSessions.length === 0 && (
+                  <p className="px-2 py-3 text-label-sm font-label-sm text-outline">
+                    {chatSessions.length === 0
+                      ? 'No conversations yet. Start a new chat.'
+                      : 'No sessions match your search.'}
+                  </p>
+                )}
+              </>
+            )}
           </div>
 
           <div className="p-3.5 bg-surface-container-low border-t border-outline-variant/30 flex items-center justify-between">
@@ -511,244 +925,28 @@ export default function AI_Telemetry() {
           <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
             <div className="flex items-center justify-center">
               <span className="px-3 py-1 bg-surface-container rounded-full text-label-sm font-label-sm text-outline border border-outline-variant/30">
-                Today • Telemetry Incident Session #8902-B
+                {activeSession
+                  ? `${formatSessionTime(activeSession)} - ${activeSession.title}`
+                  : 'New conversation'}
               </span>
             </div>
-
-            <div className="flex justify-end gap-3 max-w-4xl ml-auto">
-              <div className="flex flex-col items-end">
-                <div className="bg-primary text-on-primary rounded-2xl rounded-tr-xs px-4 py-3 shadow-sm max-w-xl">
-                  <p className="font-body-md text-body-md">Can you run an anomaly check on Tank B? We noticed temperature spikes around 11:20 AM and pressure oscillation.</p>
+            {isLoadingMessages && (
+              <p className="text-center text-label-sm font-label-sm text-outline" aria-live="polite">
+                Loading conversation...
+              </p>
+            )}
+            {!isLoadingMessages && chatMessages.length === 0 && (
+              <div className="flex gap-3 max-w-5xl">
+                <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center text-on-primary shrink-0 shadow-sm">
+                  <span className="material-symbols-outlined text-[20px]">smart_toy</span>
                 </div>
-                <div className="flex items-center gap-1 text-label-sm font-label-sm text-outline mt-1 pr-1">
-                  <span>11:24 AM</span>
-                  <span className="material-symbols-outlined text-[14px] text-primary">done_all</span>
-                </div>
-              </div>
-              <div className="w-8 h-8 rounded-full bg-primary-container text-on-primary flex items-center justify-center text-label-sm font-bold shrink-0">
-                AD
-              </div>
-            </div>
-
-            <div className="flex gap-3 max-w-5xl">
-              <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center text-on-primary shrink-0 shadow-sm">
-                <span className="material-symbols-outlined text-[20px]">smart_toy</span>
-              </div>
-              <div className="space-y-4 flex-1">
-                <div className="bg-surface-container-lowest border border-outline-variant/40 rounded-2xl rounded-tl-xs p-5 shadow-sm">
-                  <div className="flex items-center justify-between pb-3 border-b border-outline-variant/20 mb-3">
-                    <span className="font-label-caps text-label-caps text-primary tracking-wider">DIAGNOSTIC TELEMETRY ANALYSIS</span>
-                    <span className="text-label-sm font-label-sm text-outline">Generated in 240ms</span>
-                  </div>
-                  <p className="text-on-surface font-body-md text-body-md mb-2">
-                    I ingested the last 30 minutes of multi-sensor telemetry from <strong className="text-primary font-semibold">Storage Tank B (Substation 4)</strong>. An abnormal thermal gradient was detected starting at 11:18 AM, correlating with an unexpected throttle drop on inlet Valve V-12.
+                <div className="bg-surface-container-lowest border border-outline-variant/40 rounded-2xl rounded-tl-xs p-5 shadow-sm flex-1">
+                  <p className="text-body-md text-on-surface">
+                    Start a conversation by asking about your crops, sensor readings, or disease detections.
                   </p>
-                  <p className="text-on-surface-variant font-body-md text-body-md">
-                    Current conditions exceed baseline thresholds by <strong>+18.4%</strong>. Here is the active telemetry breakdown:
-                  </p>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 my-4">
-                    <div className="p-3.5 bg-surface-container-low rounded-xl border border-outline-variant/30 flex items-center justify-between">
-                      <div>
-                        <div className="text-label-caps font-label-caps text-outline tracking-wider">TANK B CORE TEMP</div>
-                        <div className="text-display-metric font-display-metric text-on-surface mt-0.5">84.2<span className="text-headline-md font-headline-md text-outline">°C</span></div>
-                        <div className="inline-flex items-center gap-1 text-label-sm font-label-sm text-error mt-1 font-semibold">
-                          <span className="material-symbols-outlined text-[14px]">arrow_upward</span>
-                          +6.2°C above max
-                        </div>
-                      </div>
-
-                      <div className="relative w-14 h-14 flex items-center justify-center">
-                        <svg className="w-14 h-14 transform -rotate-90">
-                          <circle className="text-outline-variant/30 fill-none" cx="28" cy="28" r="22" stroke="currentColor" strokeWidth="5"></circle>
-                          <circle className="text-primary-container fill-none" cx="28" cy="28" r="22" stroke="currentColor" strokeDasharray="138" strokeDashoffset="35" strokeLinecap="round" strokeWidth="5"></circle>
-                        </svg>
-                        <span className="absolute font-label-sm text-label-sm font-bold text-on-surface">84%</span>
-                      </div>
-                    </div>
-
-                    <div className="p-3.5 bg-surface-container-low rounded-xl border border-outline-variant/30 flex items-center justify-between">
-                      <div>
-                        <div className="text-label-caps font-label-caps text-outline tracking-wider">BAROMETRIC HEAD</div>
-                        <div className="text-display-metric font-display-metric text-on-surface mt-0.5">4.8<span className="text-headline-md font-headline-md text-outline"> bar</span></div>
-                        <div className="inline-flex items-center gap-1 text-label-sm font-label-sm text-tertiary mt-1 font-semibold">
-                          <span className="material-symbols-outlined text-[14px]">check_circle</span>
-                          Within safe yield
-                        </div>
-                      </div>
-
-                      <div className="w-16 space-y-1">
-                        <div className="h-2 w-full bg-outline-variant/30 rounded-full overflow-hidden">
-                          <div className="h-full bg-secondary w-3/4 rounded-full"></div>
-                        </div>
-                        <div className="text-label-sm font-label-sm text-right text-outline">68% lim</div>
-                      </div>
-                    </div>
-
-                    <div className="p-3.5 bg-surface-container-low rounded-xl border border-outline-variant/30 flex items-center justify-between">
-                      <div>
-                        <div className="text-label-caps font-label-caps text-outline tracking-wider">COOLANT FLOW V-12</div>
-                        <div className="text-display-metric font-display-metric text-on-surface mt-0.5">18<span className="text-headline-md font-headline-md text-outline"> L/m</span></div>
-                        <div className="inline-flex items-center gap-1 text-label-sm font-label-sm text-error mt-1 font-semibold">
-                          <span className="material-symbols-outlined text-[14px]">warning</span>
-                          Deficit -42%
-                        </div>
-                      </div>
-                      <div className="w-10 h-10 rounded-xl bg-error-container/40 text-error flex items-center justify-center">
-                        <span className="material-symbols-outlined text-[22px]">valve</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="p-4 bg-surface-container-low rounded-xl border border-outline-variant/30 mt-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <span className="material-symbols-outlined text-primary text-[18px]">monitoring</span>
-                        <span className="font-label-md font-semibold text-on-surface">30-Minute Temperature Spike Spectrum (Probe T-B1)</span>
-                      </div>
-                      <span className="text-label-sm font-label-sm text-outline">Sample rate: 100ms</span>
-                    </div>
-                    <div className="w-full h-24 relative flex items-end">
-                      <svg className="w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 500 90">
-                        <line className="text-outline-variant/30" stroke="currentColor" strokeDasharray="4 4" x1="0" x2="500" y1="20" y2="20"></line>
-                        <line className="text-outline-variant/30" stroke="currentColor" strokeDasharray="4 4" x1="0" x2="500" y1="60" y2="60"></line>
-
-                        <defs>
-                          <linearGradient id="chartGradient" x1="0" x2="0" y1="0" y2="1">
-                            <stop offset="0%" stopColor="#2563eb" stopOpacity="0.3"></stop>
-                            <stop offset="100%" stopColor="#2563eb" stopOpacity="0.0"></stop>
-                          </linearGradient>
-                        </defs>
-                        <path d="M 0 65 L 50 63 L 100 66 L 150 60 L 200 62 L 250 55 L 290 40 L 320 25 L 350 18 L 380 22 L 420 30 L 460 28 L 500 24 L 500 90 L 0 90 Z" fill="url(#chartGradient)"></path>
-                        <path d="M 0 65 L 50 63 L 100 66 L 150 60 L 200 62 L 250 55 L 290 40 L 320 25 L 350 18 L 380 22 L 420 30 L 460 28 L 500 24" fill="none" stroke="#2563eb" strokeLinecap="round" strokeWidth="2.5"></path>
-
-                        <circle className="fill-error stroke-surface-container-lowest" cx="350" cy="18" r="4" strokeWidth="2"></circle>
-                      </svg>
-                    </div>
-                    <div className="flex justify-between text-label-sm font-label-sm text-outline mt-1.5 pt-1 border-t border-outline-variant/20">
-                      <span>10:55 AM (65.8°C)</span>
-                      <span>11:18 AM (Anomaly Trigger)</span>
-                      <span className="text-error font-medium">11:20 AM Peak (84.2°C)</span>
-                      <span>11:25 AM (Live)</span>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 pt-3 border-t border-outline-variant/20">
-                    <div className="flex items-center gap-1.5 text-label-caps font-label-caps text-on-surface-variant font-bold mb-2">
-                      <span className="material-symbols-outlined text-[16px] text-tertiary">check_circle</span>
-                      RECOMMENDED CORRECTIVE ACTIONS
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                      <div className="p-3 rounded-lg border border-primary/20 bg-surface-container-low flex items-center justify-between">
-                        <div>
-                          <p className="font-label-md font-semibold text-on-surface">Auto-adjust Coolant Valve</p>
-                          <p className="text-label-sm font-label-sm text-outline">Increase flow to 35 L/m to counter gradient</p>
-                        </div>
-                        <button className="px-2.5 py-1.5 bg-primary text-on-primary rounded-lg text-label-sm font-label-sm font-semibold hover:bg-primary/90 transition-all shrink-0">
-                          Apply Action
-                        </button>
-                      </div>
-
-                      <div className="p-3 rounded-lg border border-outline-variant/30 bg-surface-container-lowest flex items-center justify-between">
-                        <div>
-                          <p className="font-label-md font-semibold text-on-surface">Secondary Fan Overdrive</p>
-                          <p className="text-label-sm font-label-sm text-outline">Spins auxiliary fan bank B-2 up to 100%</p>
-                        </div>
-                        <button className="px-2.5 py-1.5 border border-outline-variant/50 text-on-surface rounded-lg text-label-sm font-label-sm font-medium hover:bg-surface-container-low transition-all shrink-0">
-                          Execute
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between mt-4 pt-2 border-t border-outline-variant/10 text-label-sm font-label-sm text-outline">
-                    <div className="flex items-center gap-3">
-                      <button className="flex items-center gap-1 hover:text-on-surface" title="Copy diagnosis"><span className="material-symbols-outlined text-[16px]">content_copy</span> Copy</button>
-                      <button className="flex items-center gap-1 hover:text-on-surface" title="Create incident report"><span className="material-symbols-outlined text-[16px]">assignment</span> Generate Incident Ticket</button>
-                      <button className="flex items-center gap-1 hover:text-on-surface" title="Good response"><span className="material-symbols-outlined text-[16px]">thumb_up</span></button>
-                      <button className="flex items-center gap-1 hover:text-on-surface" title="Needs improvement"><span className="material-symbols-outlined text-[16px]">thumb_down</span></button>
-                    </div>
-                    <span>11:24 AM • Verified by Model Confidence: 98.4%</span>
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2 pt-1 pl-1">
-                  <span className="text-label-caps font-label-caps text-outline tracking-wider">SUGGESTED ACTIONS:</span>
-                  <button className="px-3 py-1 rounded-full bg-surface-container-lowest border border-outline-variant/40 hover:border-primary text-label-sm font-label-sm text-on-surface hover:text-primary transition-all flex items-center gap-1 shadow-sm">
-                    <span className="material-symbols-outlined text-[14px] text-primary">sensors</span>
-                    Check sensor status
-                  </button>
-                  <button className="px-3 py-1 rounded-full bg-surface-container-lowest border border-outline-variant/40 hover:border-primary text-label-sm font-label-sm text-on-surface hover:text-primary transition-all flex items-center gap-1 shadow-sm">
-                    <span className="material-symbols-outlined text-[14px] text-primary">cloud_queue</span>
-                    Summarize weather trends
-                  </button>
-                  <button className="px-3 py-1 rounded-full bg-surface-container-lowest border border-outline-variant/40 hover:border-primary text-label-sm font-label-sm text-on-surface hover:text-primary transition-all flex items-center gap-1 shadow-sm">
-                    <span className="material-symbols-outlined text-[14px] text-primary">cyclone</span>
-                    Simulate pump cycle
-                  </button>
-                  <button className="px-3 py-1 rounded-full bg-surface-container-lowest border border-outline-variant/40 hover:border-primary text-label-sm font-label-sm text-on-surface hover:text-primary transition-all flex items-center gap-1 shadow-sm">
-                    <span className="material-symbols-outlined text-[14px] text-primary">lock_reset</span>
-                    Reset Thermal Interlock
-                  </button>
                 </div>
               </div>
-            </div>
-
-            <div className="flex justify-end gap-3 max-w-4xl ml-auto">
-              <div className="flex flex-col items-end">
-                <div className="bg-primary text-on-primary rounded-2xl rounded-tr-xs px-4 py-3 shadow-sm max-w-xl">
-                  <p className="font-body-md text-body-md">Simulate pump cycle with coolant flow at 35 L/m. How fast will core temperature normalize to 65°C?</p>
-                </div>
-                <div className="flex items-center gap-1 text-label-sm font-label-sm text-outline mt-1 pr-1">
-                  <span>11:26 AM</span>
-                  <span className="material-symbols-outlined text-[14px] text-primary">done_all</span>
-                </div>
-              </div>
-              <div className="w-8 h-8 rounded-full bg-primary-container text-on-primary flex items-center justify-center text-label-sm font-bold shrink-0">
-                AD
-              </div>
-            </div>
-
-            <div className="flex gap-3 max-w-5xl">
-              <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center text-on-primary shrink-0 shadow-sm">
-                <span className="material-symbols-outlined text-[20px]">smart_toy</span>
-              </div>
-              <div className="bg-surface-container-lowest border border-outline-variant/40 rounded-2xl rounded-tl-xs p-5 shadow-sm space-y-3 flex-1">
-                <div className="flex items-center justify-between">
-                  <span className="font-label-caps text-label-caps text-primary tracking-wider">PREDICTIVE SIMULATION RESULT</span>
-                  <span className="inline-flex items-center gap-1 text-label-sm font-label-sm text-tertiary font-semibold">
-                    <span className="material-symbols-outlined text-[16px]">verified</span> Safe Trajectory
-                  </span>
-                </div>
-                <p className="text-on-surface font-body-md text-body-md">
-                  Running dynamic thermodynamic simulation using digital twin profile <span className="font-semibold text-primary">DT-TankB-Hydro</span>. At <strong>35 L/m</strong>, temperature is projected to drop below nominal threshold (65.0°C) within <strong className="text-primary">6 minutes 40 seconds</strong>.
-                </p>
-
-                <div className="grid grid-cols-3 gap-3 p-3 bg-surface-container-low rounded-xl border border-outline-variant/30 text-center">
-                  <div>
-                    <p className="text-label-caps font-label-caps text-outline">ESTIMATED DROP TIME</p>
-                    <p className="text-headline-md font-headline-md font-bold text-on-surface mt-0.5">6m 40s</p>
-                  </div>
-                  <div className="border-x border-outline-variant/30">
-                    <p className="text-label-caps font-label-caps text-outline">PUMP POWER DRAW</p>
-                    <p className="text-headline-md font-headline-md font-bold text-on-surface mt-0.5">2.4 kW <span className="text-label-sm font-normal text-outline">(+0.3)</span></p>
-                  </div>
-                  <div>
-                    <p className="text-label-caps font-label-caps text-outline">SYSTEM STABILITY</p>
-                    <p className="text-headline-md font-headline-md font-bold text-tertiary mt-0.5">Optimal</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 pt-2">
-                  <button className="px-3.5 py-1.5 rounded-lg bg-primary text-on-primary text-label-md font-label-md font-semibold hover:bg-primary/90 flex items-center gap-1.5 shadow-sm">
-                    <span className="material-symbols-outlined text-[16px]">play_arrow</span>
-                    Commit Simulation to PLC Controller
-                  </button>
-                  <button className="px-3.5 py-1.5 rounded-lg border border-outline-variant/50 text-on-surface text-label-md font-label-md font-medium hover:bg-surface-container-low">
-                    Adjust Parameters
-                  </button>
-                </div>
-              </div>
-            </div>
+            )}
             {chatMessages.map((chatMessage, index) => (
               chatMessage.role === 'user' ? (
                 <div className="flex justify-end gap-3 max-w-4xl ml-auto" key={`user-${index}`}>
@@ -771,6 +969,12 @@ export default function AI_Telemetry() {
                     <span className="material-symbols-outlined text-[20px]">smart_toy</span>
                   </div>
                   <div className="bg-surface-container-lowest border border-outline-variant/40 rounded-2xl rounded-tl-xs p-5 shadow-sm space-y-3 flex-1">
+                    {chatMessage.showSensorChart && (
+                      <SensorReadingsLineCharts
+                        metrics={chatMessage.sensorMetrics}
+                        readings={chatMessage.sensorChartReadings}
+                      />
+                    )}
                     {chatMessage.sensorMetrics.length > 0 && chatMessage.sensorReadings.length > 0 && (
                       <div className="overflow-x-auto rounded-xl border border-outline-variant/40">
                         <table className="w-full min-w-max border-collapse text-left text-label-sm font-label-sm">
@@ -814,6 +1018,9 @@ export default function AI_Telemetry() {
                         <h3 className="bg-surface-container-low px-3 py-2 text-label-sm font-label-sm font-semibold text-on-surface">
                           Disease detection history ({chatMessage.diseaseDetections.length})
                         </h3>
+                        {chatMessage.showDiseaseChart && chatMessage.diseaseDetections.length > 0 && (
+                          <DiseaseDetectionPieChart detections={chatMessage.diseaseDetections} />
+                        )}
                         {chatMessage.diseaseDetections.length > 0 ? (
                           <div className="grid grid-cols-1 gap-3 p-3 sm:grid-cols-2">
                             {chatMessage.diseaseDetections.map((detection, detectionIndex) => (
@@ -913,7 +1120,7 @@ export default function AI_Telemetry() {
                   <span className="material-symbols-outlined text-[20px]">mic</span>
                 </button>
 
-                <button className="w-10 h-10 rounded-lg bg-primary text-on-primary flex items-center justify-center hover:bg-primary/90 transition-all shrink-0 shadow-sm active:scale-95 disabled:opacity-50" disabled={isSending || !message.trim()} title="Send message" type="submit">
+                <button className="w-10 h-10 rounded-lg bg-primary text-on-primary flex items-center justify-center hover:bg-primary/90 transition-all shrink-0 shadow-sm active:scale-95 disabled:opacity-50" disabled={isSending || isCreatingSession || isLoadingMessages || isLoadingSessions || !message.trim()} title="Send message" type="submit">
                   <span className="material-symbols-outlined text-[20px]">send</span>
                 </button>
               </form>

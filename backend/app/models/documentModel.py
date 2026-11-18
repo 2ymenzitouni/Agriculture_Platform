@@ -3,7 +3,6 @@ from datetime import datetime
 from sqlalchemy import Column, String, Integer, Text, DateTime, ForeignKey, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
-from pgvector.sqlalchemy import Vector
 
 from app.core.database import Base
 
@@ -36,9 +35,6 @@ class DocumentChunk(Base):
     
     chunk_index = Column(Integer, nullable=False)
     content = Column(Text, nullable=False)
-    
-    # pgvector 768-dimensional embedding column
-    embedding = Column(Vector(768), nullable=True)
     
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 

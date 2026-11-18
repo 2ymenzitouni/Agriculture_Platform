@@ -1,20 +1,42 @@
+import logging
+import os
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from app.api.router.router import api_router
 from app.core.database import Base, engine
-import os
+from app.core.database import SessionLocal
+from app.ai.rag.chroma_store import migrate_legacy_embeddings
 #--------------------------------------------------
 # Import all models here to ensure they are registered with SQLAlchemy
 from app.models.usersModel import User
 from app.models.plantModel import Plant
 from app.models.chatModel import ChatSession
+from app.models.chatMessageModel import ChatMessage
 from app.models.sensor_readingsModel import SensorReading
 from app.models.documentModel import Document, DocumentChunk
 from app.models.disease_detectionModel import DiseaseDetection
 #--------------------------------------------------
 # 2. Trigger table creation in PostgreSQL
 Base.metadata.create_all(bind=engine)
+
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
+    db = SessionLocal()
+    try:
+        migrated_count = migrate_legacy_embeddings(db)
+        if migrated_count:
+            logger.info("Migrated %s document embeddings to ChromaDB.", migrated_count)
+    finally:
+        db.close()
+    yield
+
 
 # --------------------------------------------------
 # Application
@@ -24,8 +46,8 @@ app = FastAPI(
     title="AgriAI API",
     description="Intelligent agricultural assistant and smart farm management API",
     version="0.1.0",
+    lifespan=lifespan,
 )
-
 
 # --------------------------------------------------
 # CORS

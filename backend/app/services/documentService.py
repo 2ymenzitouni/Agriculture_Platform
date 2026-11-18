@@ -4,6 +4,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session, selectinload
 from app.models.documentModel import Document, DocumentChunk
 from app.models.usersModel import User  # Adjust import path if needed
+from app.ai.rag.chroma_store import get_chroma_store
 
 class DocumentService:
     def __init__(self, db: Session):
@@ -53,6 +54,7 @@ class DocumentService:
 
         file_path = Path(document.file_path).resolve() if document.file_path else None
         upload_dir = Path("static/documents").resolve()
+        get_chroma_store().delete_document(document.id)
         self.db.delete(document)
         self.db.commit()
 
@@ -90,5 +92,6 @@ class DocumentService:
 
     def delete_document(self, document_id: uuid.UUID) -> None:
         document = self.get_document_by_id(document_id)
+        get_chroma_store().delete_document(document.id)
         self.db.delete(document)
         self.db.commit()
