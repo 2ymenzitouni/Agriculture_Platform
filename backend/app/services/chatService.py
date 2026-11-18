@@ -1,4 +1,6 @@
+import asyncio
 import re
+import unicodedata
 from uuid import UUID
 
 import asyncpg
@@ -7,9 +9,21 @@ from google.genai import types
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_google_genai import ChatGoogleGenerativeAI
+from app.ai.rag.chroma_store import EMBEDDING_DIMENSIONS, get_chroma_store
 
 EMBEDDING_MODEL = "gemini-embedding-2"
 SENSOR_READING_COUNT_WORDS = {
+    "un": 1,
+    "une": 1,
+    "deux": 2,
+    "trois": 3,
+    "quatre": 4,
+    "cinq": 5,
+    "six": 6,
+    "sept": 7,
+    "huit": 8,
+    "neuf": 9,
+    "dix": 10,
     "one": 1,
     "two": 2,
     "three": 3,
@@ -27,11 +41,42 @@ DETECTION_REQUEST_STOP_WORDS = {
     "load", "me", "my", "named", "of", "on", "only", "photo", "photos",
     "picture", "pictures", "plant", "please", "record", "records", "see",
     "show", "specific", "the", "this", "to", "what", "you",
+    "au", "aux", "de", "des", "du", "et", "image", "la", "le", "les",
+    "maladie", "maladies", "mon", "ma", "mes", "photo", "photos", "pour",
+    "plante", "plantes", "quel", "quelle", "quels", "quelles", "sur",
+    "un", "une", "voir",
 }
 
 
+def _normalize_text(value: str) -> str:
+    decomposed = unicodedata.normalize("NFKD", value.casefold())
+    without_accents = "".join(
+        character
+        for character in decomposed
+        if not unicodedata.combining(character)
+    )
+    return re.sub(r"[_'’\-]+", " ", without_accents)
+
+
 def _normalized_name_tokens(value: str | None) -> list[str]:
-    return re.findall(r"[a-z0-9]+", (value or "").casefold())
+    return re.findall(r"[a-z0-9]+", _normalize_text(value or ""))
+
+
+def _asks_for_sensor_data(question: str) -> bool:
+    return bool(
+        re.search(
+            r"\b(sensor|readings?|measurements?|capteurs?|releves?|mesures?|lectures?|"
+            r"ph|tds|humidity|humidite|light|lumiere|water\s+level|"
+            r"niveau\s+d\s+eau|(?:air|water)\s+temperature|temperature)\b",
+            question,
+        )
+    )
+
+
+def _mentions_today(question: str) -> bool:
+    if re.search(r"\b(?:today|aujourd\s+hui)\b", question):
+        return True
+    return any(_is_today_word(word) for word in re.findall(r"[a-z]+", question))
 
 
 def _disease_name_tokens(detection: dict) -> list[str]:
@@ -95,7 +140,10 @@ def filter_disease_detections(
             if tuple(_normalized_name_tokens(detection.get("prediction"))) in matching_names
         ], True
 
-    named_phrase = re.search(r"\b(?:of|for|named|called)\b(.+)", question.casefold())
+    named_phrase = re.search(
+        r"\b(?:of|for|named|called|de|du|des|pour|nomme|appele)\b(.+)",
+        _normalize_text(question),
+    )
     if named_phrase:
         phrase_tokens = set(_normalized_name_tokens(named_phrase.group(1)))
         has_specific_name = bool(phrase_tokens - DETECTION_REQUEST_STOP_WORDS)
@@ -124,7 +172,7 @@ class ChatService:
         self.chat_prompt = ChatPromptTemplate.from_messages(
             [
                 ("system", "{system_instruction}"),
-                ("human", "{context}\nUser Question: {question}"),
+                ("human", "{context}\nQuestion de l’utilisateur : {question}"),
             ]
         )
 
@@ -133,10 +181,12 @@ class ChatService:
         response = self.gemini_client.models.embed_content(
             model=EMBEDDING_MODEL,
             contents=text,
-            config=types.EmbedContentConfig(output_dimensionality=768)
+            config=types.EmbedContentConfig(
+                output_dimensionality=EMBEDDING_DIMENSIONS
+            )
         )
         if not response.embeddings or not response.embeddings[0].values:
-            raise RuntimeError("The embedding model returned no query embedding.")
+            raise RuntimeError("Le modèle d’embedding n’a pas renvoyé le vecteur de la question.")
         return response.embeddings[0].values
 
     async def get_sensor_readings(self, user_id: UUID) -> list[dict]:
@@ -276,21 +326,38 @@ class ChatService:
         user_id: UUID,
         limit: int = 3,
     ) -> list[dict]:
-        """Searches this user's document chunks by vector similarity."""
+        """Searches Chroma and confirms the matching documents are still active."""
+        matches = await asyncio.to_thread(
+            get_chroma_store().search,
+            query_embedding,
+            user_id,
+            limit,
+        )
+        if not matches:
+            return []
+
+        document_ids = list({UUID(match["document_id"]) for match in matches})
         async with self.db_pool.acquire() as conn:
             rows = await conn.fetch(
                 """
-                SELECT d.filename as document_name, c.chunk_index, c.content,
-                       (c.embedding <=> $1::vector) as distance
-                FROM document_chunks c
-                JOIN documents d ON c.document_id = d.id
-                WHERE d.user_id = $2
-                ORDER BY distance ASC
-                LIMIT $3;
+                SELECT id, filename
+                FROM documents
+                WHERE user_id = $1 AND id = ANY($2::uuid[])
                 """,
-                str(query_embedding), user_id, limit
+                user_id,
+                document_ids,
             )
-            return [dict(row) for row in rows]
+        active_documents = {row["id"]: row["filename"] for row in rows}
+        return [
+            {
+                "document_name": active_documents[UUID(match["document_id"])],
+                "chunk_index": match["chunk_index"],
+                "content": match["content"],
+                "distance": match["distance"],
+            }
+            for match in matches
+            if UUID(match["document_id"]) in active_documents
+        ]
 
     async def process_chat_turn(
         self,
@@ -300,24 +367,34 @@ class ChatService:
     ) -> dict:
         question = user_message.strip()
         if not question:
-            raise ValueError("Please enter a question.")
+            raise ValueError("Veuillez saisir une question.")
 
-        normalized_question = re.sub(r"[_-]+", " ", question.casefold())
-        asks_for_sensor_data = bool(
-            re.search(
-                r"\b(sensor|readings?|measurements?|ph|tds|humidity|light|"
-                r"water\s+level|(?:air|water)\s+temperature)\b",
-                normalized_question,
-            )
+        normalized_question = _normalize_text(question)
+        asks_for_sensor_data = _asks_for_sensor_data(normalized_question)
+        count_pattern = (
+            r"(\d+|one|two|three|four|five|six|seven|eight|nine|ten|"
+            r"un|une|deux|trois|quatre|cinq|six|sept|huit|neuf|dix)"
+        )
+        recency_pattern = (
+            r"(?:last|latest|most recent|past|previous|dernier(?:e|s|es)?|"
+            r"precedent(?:e|s|es)?|plus\s+recent(?:e|s|es)?)"
         )
         sensor_count_match = re.search(
-            r"\b(?:last|latest|most recent|past|previous)\s+"
-            r"(\d+|one|two|three|four|five|six|seven|eight|nine|ten)\b",
+            rf"\b{recency_pattern}\s+{count_pattern}\b",
+            normalized_question,
+        )
+        count_match = re.search(
+            rf"\b{count_pattern}\s+{recency_pattern}\b",
             normalized_question,
         )
         requested_sensor_count = None
         if sensor_count_match:
             count_text = sensor_count_match.group(1)
+        elif count_match:
+            count_text = count_match.group(1)
+        else:
+            count_text = None
+        if count_text:
             requested_sensor_count = SENSOR_READING_COUNT_WORDS.get(
                 count_text,
                 int(count_text) if count_text.isdigit() else None,
@@ -325,63 +402,77 @@ class ChatService:
         asks_for_all_sensor_readings = asks_for_sensor_data and (
             requested_sensor_count is not None
             or bool(re.search(
-                r"\b(all|every|entire|full|history|historical|records?)\b",
+                r"\b(all|every|entire|full|history|historical|records?|"
+                r"tout|tous|toute|toutes|ensemble|historique|archives?)\b",
                 normalized_question,
             ))
         )
         asks_for_current_sensor = bool(
             re.search(
-                r"\b(?:current|latest|my)\s+(?:current\s+)?"
-                r"(?:ph|tds|sensor|temperature|humidity|light|water(?:\s+level|\s+temperature)?)\b",
+                r"\b(?:current|latest|my|mon|ma|mes|actuel(?:le|s|les)?|"
+                r"dernier(?:e|s|es)?)\s+(?:current\s+)?"
+                r"(?:ph|tds|sensor|capteurs?|readings?|releves?|mesures?|lectures?|"
+                r"temperature|humidite|lumiere|"
+                r"light|water(?:\s+level|\s+temperature)?|niveau\s+d\s+eau)\b",
+                normalized_question,
+            )
+        ) or bool(
+            re.search(
+                r"\b(?:ph|tds|sensor|capteurs?|readings?|releves?|mesures?|lectures?|"
+                r"temperature|humidite|lumiere|"
+                r"light|water(?:\s+level|\s+temperature)?|niveau\s+d\s+eau)\s+"
+                r"(?:current|latest|actual|actuel(?:le|s|les)?|"
+                r"dernier(?:e|s|es)?)\b",
                 normalized_question,
             )
         ) or (
-            "right now" in normalized_question
-            and bool(
+            bool(
                 re.search(
-                    r"\b(?:ph|tds|sensor|temperature|humidity|light|water)\b",
+                    r"\b(?:right\s+now|now|maintenant|en\s+ce\s+moment)\b",
                     normalized_question,
                 )
             )
+            and asks_for_sensor_data
         )
-        mentions_today = any(
-            _is_today_word(word)
-            for word in re.findall(r"[a-z]+", normalized_question)
-        )
-        asks_for_sensor_today = bool(
-            mentions_today
-            and re.search(
-                r"\b(sensor|readings?|measurements?|ph|tds|humidity|light|water\s+level|"
-                r"(?:air|water)\s+temperature)\b",
-                normalized_question,
-            )
-        )
+        mentions_today = _mentions_today(normalized_question)
+        asks_for_sensor_today = mentions_today and asks_for_sensor_data
         asks_for_detections_today = bool(
             mentions_today
             and re.search(
-                r"\b(detect\w*|diagnos\w*|image|photo|picture|history|record\w*|found|seen)\b",
+                r"\b(detect\w*|diagnos\w*|image|photo|picture|history|record\w*|"
+                r"found|seen|historique|enregistr\w*|trouv\w*|observ\w*|vu|"
+                r"maladie\w*)\b",
                 normalized_question,
             )
         )
-        asks_for_yesterdays_detection = "yesterday" in normalized_question
+        asks_for_yesterdays_detection = bool(
+            re.search(r"\b(?:yesterday|hier)\b", normalized_question)
+        )
         asks_for_disease_treatment = bool(
             re.search(
                 r"\b(treat\w*|manage\w*|cur\w*|control\w*|remed\w*|prevent\w*|"
-                r"fungicide|chemical|symptom\w*|guidance|guide|recommend\w*)\b",
+                r"fungicide|chemical|symptom\w*|guidance|guide|recommend\w*|"
+                r"trait\w*|soign\w*|guer\w*|ger\w*|lutt\w*|traitement\w*|"
+                r"fongicide\w*|produit\w*|chimique\w*|symptome\w*|conseil\w*|"
+                r"prevenir|proteger|protection|recommand\w*)\b",
                 normalized_question,
             )
         )
         asks_for_detection_history = bool(
             re.search(
                 r"\b(detect\w*|detection\w*|diagnos\w*|image\w*|photo\w*|picture\w*|"
-                r"history|record\w*|found|seen)\b",
+                r"history|record\w*|found|seen|historique|enregistr\w*|trouv\w*|"
+                r"observ\w*|photo\w*|image\w*)\b",
                 normalized_question,
             )
         ) and bool(
             re.search(
                 r"\b(disease\w*|detect\w*|image\w*|photo\w*|picture\w*|"
                 r"diagnos\w*|infection\w*|infected|sick|blight|spot|mildew|"
-                r"mosaic|rust|rot|wilt|canker|scab|septoria|anthracnose|target)\b",
+                r"mosaic|rust|rot|wilt|canker|scab|septoria|anthracnose|target|"
+                r"maladie\w*|infection\w*|infect\w*|mildiou|oidium|tache\w*|"
+                r"mosaique|rouille|pourriture|fletr\w*|chancre\w*|gale|"
+                r"septoriose|anthracnose)\b",
                 normalized_question,
             )
         )
@@ -391,7 +482,9 @@ class ChatService:
                 re.search(
                     r"\b(disease\w*|infection\w*|infected|sick|fung\w*|"
                     r"blight|spot|mildew|mosaic|rust|rot|wilt|canker|scab|"
-                    r"septoria|anthracnose|target)\b",
+                    r"septoria|anthracnose|target|maladie\w*|infection\w*|"
+                    r"infect\w*|fung\w*|mildiou|oidium|tache\w*|mosaique|"
+                    r"rouille|pourriture|fletr\w*|chancre\w*|gale|septoriose)\b",
                     normalized_question,
                 )
             )
@@ -473,12 +566,16 @@ class ChatService:
             latest_detection = disease_detections[0]
         elif asks_for_detection_history:
             latest_detection = {}
-        context_str = "--- AGRICULTURAL KNOWLEDGE CHUNKS ---\n"
+        context_str = "--- EXTRAITS DE CONNAISSANCES AGRICOLES ---\n"
         for chunk in knowledge_chunks:
-            context_str += f"Source: {chunk['document_name']} (Chunk Index: {chunk['chunk_index']})\n{chunk['content']}\n\n"
+            context_str += (
+                f"Source : {chunk['document_name']} "
+                f"(extrait n° {chunk['chunk_index']})\n"
+                f"{chunk['content']}\n\n"
+            )
 
         if asks_for_sensor_today:
-            context_str += "--- SENSOR READINGS RECORDED TODAY ---\n"
+            context_str += "--- RELEVÉS DES CAPTEURS ENREGISTRÉS AUJOURD’HUI ---\n"
             requested_today_readings = (
                 sensor_readings_today[:requested_sensor_count]
                 if requested_sensor_count is not None
@@ -487,192 +584,199 @@ class ChatService:
             if requested_today_readings:
                 for reading in requested_today_readings:
                     context_str += (
-                        f"Recorded at: {reading.get('timestamp')}; "
-                        f"pH: {reading.get('ph')}, TDS: {reading.get('tds')} ppm, "
-                        f"Air temperature: {reading.get('temperature')}°C, "
-                        f"Humidity: {reading.get('humidity')}%, "
-                        f"Water temperature: {reading.get('water_temperature')}°C, "
-                        f"Water level: {reading.get('water_level')}%, "
-                        f"Light: {reading.get('light')}\n"
+                        f"Enregistré le : {reading.get('timestamp')} ; "
+                        f"pH : {reading.get('ph')}, TDS : {reading.get('tds')} ppm, "
+                        f"température de l’air : {reading.get('temperature')} °C, "
+                        f"humidité : {reading.get('humidity')} %, "
+                        f"température de l’eau : {reading.get('water_temperature')} °C, "
+                        f"niveau d’eau : {reading.get('water_level')} %, "
+                        f"luminosité : {reading.get('light')}\n"
                     )
             else:
-                context_str += "No sensor readings were recorded today.\n"
+                context_str += "Aucun relevé de capteur n’a été enregistré aujourd’hui.\n"
                 if latest_sensor_before_today:
                     context_str += (
-                        f"The latest available sensor reading before today was recorded at "
-                        f"{latest_sensor_before_today.get('timestamp')}: "
+                        f"Le dernier relevé disponible avant aujourd’hui date du "
+                        f"{latest_sensor_before_today.get('timestamp')} : "
                         f"pH {latest_sensor_before_today.get('ph')}, "
                         f"TDS {latest_sensor_before_today.get('tds')} ppm, "
-                        f"air temperature {latest_sensor_before_today.get('temperature')}°C, "
-                        f"humidity {latest_sensor_before_today.get('humidity')}%, "
-                        f"water temperature {latest_sensor_before_today.get('water_temperature')}°C, "
-                        f"water level {latest_sensor_before_today.get('water_level')}%, "
-                        f"light {latest_sensor_before_today.get('light')}.\n"
+                        f"température de l’air {latest_sensor_before_today.get('temperature')} °C, "
+                        f"humidité {latest_sensor_before_today.get('humidity')} %, "
+                        f"température de l’eau "
+                        f"{latest_sensor_before_today.get('water_temperature')} °C, "
+                        f"niveau d’eau {latest_sensor_before_today.get('water_level')} %, "
+                        f"luminosité {latest_sensor_before_today.get('light')}.\n"
                     )
                 else:
-                    context_str += "No earlier sensor readings are available.\n"
+                    context_str += "Aucun relevé antérieur n’est disponible.\n"
 
         if asks_for_all_sensor_readings and not asks_for_sensor_today:
-            context_str += "--- REQUESTED SENSOR READINGS ---\n"
+            context_str += "--- RELEVÉS DE CAPTEURS DEMANDÉS ---\n"
             if requested_sensor_readings:
                 for reading in requested_sensor_readings:
                     context_str += (
-                        f"Recorded at: {reading.get('timestamp')}; "
-                        f"pH: {reading.get('ph')}, TDS: {reading.get('tds')} ppm, "
-                        f"Air temperature: {reading.get('temperature')}°C, "
-                        f"Humidity: {reading.get('humidity')}%, "
-                        f"Water temperature: {reading.get('water_temperature')}°C, "
-                        f"Water level: {reading.get('water_level')}%, "
-                        f"Light: {reading.get('light')}\n"
+                        f"Enregistré le : {reading.get('timestamp')} ; "
+                        f"pH : {reading.get('ph')}, TDS : {reading.get('tds')} ppm, "
+                        f"température de l’air : {reading.get('temperature')} °C, "
+                        f"humidité : {reading.get('humidity')} %, "
+                        f"température de l’eau : {reading.get('water_temperature')} °C, "
+                        f"niveau d’eau : {reading.get('water_level')} %, "
+                        f"luminosité : {reading.get('light')}\n"
                     )
             else:
-                context_str += "No sensor readings are available.\n"
+                context_str += "Aucun relevé de capteur n’est disponible.\n"
 
         if asks_for_detections_today:
-            context_str += "--- DISEASE DETECTIONS RECORDED TODAY ---\n"
+            context_str += "--- DÉTECTIONS DE MALADIES ENREGISTRÉES AUJOURD’HUI ---\n"
             if disease_detections_today:
                 for detection in disease_detections_today:
                     context_str += (
-                        f"Detected at: {detection.get('detection_time')}; "
-                        f"plant: {detection.get('plant_name')}; "
-                        f"crop: {detection.get('crop')}; "
-                        f"prediction: {detection.get('prediction')}; "
-                        f"confidence: {detection.get('confidence')}\n"
+                        f"Détectée le : {detection.get('detection_time')} ; "
+                        f"plante : {detection.get('plant_name')} ; "
+                        f"culture : {detection.get('crop')} ; "
+                        f"prédiction : {detection.get('prediction')} ; "
+                        f"confiance : {detection.get('confidence')}\n"
                     )
             else:
-                context_str += "No disease detections were recorded today.\n"
+                context_str += "Aucune maladie n’a été détectée aujourd’hui.\n"
                 if latest_detection_before_today:
                     context_str += (
-                        f"The latest earlier disease detection was detected at "
+                        f"La dernière détection antérieure date du "
                         f"{latest_detection_before_today.get('detection_time')}: "
                         f"{latest_detection_before_today.get('prediction')} "
-                        f"(confidence {latest_detection_before_today.get('confidence')}).\n"
+                        f"(confiance : {latest_detection_before_today.get('confidence')}).\n"
                     )
                 else:
-                    context_str += "No earlier disease detections are available.\n"
+                    context_str += "Aucune détection antérieure n’est disponible.\n"
 
         if not (
             asks_for_sensor_today
             or asks_for_all_sensor_readings
             or asks_for_detections_today
         ):
-            context_str += "--- LATEST SENSOR READINGS ---\n"
+            context_str += "--- DERNIERS RELEVÉS DE CAPTEURS ---\n"
             if latest_sensor:
-                context_str += f"Timestamp: {latest_sensor.get('timestamp')}\n" \
-                               f"pH: {latest_sensor.get('ph')}, TDS: {latest_sensor.get('tds')} ppm, " \
-                               f"Water Temp: {latest_sensor.get('water_temperature')}°C, Water Level: {latest_sensor.get('water_level')}%\n\n"
+                context_str += f"Horodatage : {latest_sensor.get('timestamp')}\n" \
+                               f"pH : {latest_sensor.get('ph')}, TDS : {latest_sensor.get('tds')} ppm, " \
+                               f"température de l’eau : {latest_sensor.get('water_temperature')} °C, " \
+                               f"niveau d’eau : {latest_sensor.get('water_level')} %\n\n"
             else:
-                context_str += "No recent sensor data available.\n\n"
+                context_str += "Aucune donnée récente de capteur n’est disponible.\n\n"
 
         if not (asks_for_sensor_today or asks_for_detections_today):
-            context_str += "--- LATEST YOLO DISEASE DETECTION ---\n"
+            context_str += "--- DERNIÈRE DÉTECTION DE MALADIE (YOLO) ---\n"
             if latest_detection:
-                context_str += f"Time: {latest_detection.get('detection_time')}\n" \
-                               f"Prediction: {latest_detection.get('prediction')} (Confidence: {latest_detection.get('confidence')})\n\n"
+                context_str += f"Date : {latest_detection.get('detection_time')}\n" \
+                               f"Prédiction : {latest_detection.get('prediction')} " \
+                               f"(confiance : {latest_detection.get('confidence')})\n\n"
             elif not (asks_for_yesterdays_detection or asks_for_detection_history):
-                context_str += "No recent disease detections.\n\n"
+                context_str += "Aucune détection récente de maladie.\n\n"
 
         if asks_for_yesterdays_detection:
-            context_str += "--- DISEASE DETECTIONS FROM YESTERDAY ---\n"
+            context_str += "--- DÉTECTIONS DE MALADIES D’HIER ---\n"
             if detection_history:
                 for detection in detection_history:
                     context_str += (
-                        f"Time: {detection.get('detection_time')}\n"
-                        f"Prediction: {detection.get('prediction')} "
-                        f"(Confidence: {detection.get('confidence')})\n\n"
+                        f"Date : {detection.get('detection_time')}\n"
+                        f"Prédiction : {detection.get('prediction')} "
+                        f"(confiance : {detection.get('confidence')})\n\n"
                     )
             else:
-                context_str += "No disease detections were recorded yesterday.\n\n"
+                context_str += "Aucune détection de maladie n’a été enregistrée hier.\n\n"
 
         if asks_for_detection_history and not asks_for_detections_today:
-            context_str += "--- USER'S MATCHING DISEASE DETECTIONS ---\n"
+            context_str += "--- DÉTECTIONS DE MALADIES CORRESPONDANTES ---\n"
             if disease_detections:
                 for detection in disease_detections[:20]:
                     context_str += (
-                        f"Plant: {detection.get('plant_name')}, "
-                        f"Crop: {detection.get('crop')}, "
-                        f"Prediction: {detection.get('prediction')}, "
-                        f"Confidence: {detection.get('confidence')}, "
-                        f"Time: {detection.get('detection_time')}\n"
+                        f"Plante : {detection.get('plant_name')}, "
+                        f"culture : {detection.get('crop')}, "
+                        f"prédiction : {detection.get('prediction')}, "
+                        f"confiance : {detection.get('confidence')}, "
+                        f"date : {detection.get('detection_time')}\n"
                     )
             else:
                 context_str += (
-                    "No matching disease detection records were found.\n"
+                    "Aucune détection de maladie correspondante n’a été trouvée.\n"
                     if has_disease_filter
-                    else "No disease detection records were found.\n"
+                    else "Aucune détection de maladie n’a été trouvée.\n"
                 )
             if len(disease_detections) > 20:
                 context_str += (
-                    f"Showing the 20 most recent of {len(disease_detections)} "
-                    "records in this prompt. The application displays every record.\n"
+                    f"Les 20 enregistrements les plus récents sur {len(disease_detections)} "
+                    "sont inclus dans ce contexte. L’application affiche tous les enregistrements.\n"
                 )
 
         system_instruction = (
-            "You are an expert smart agriculture assistant focused on tomato cultivation, sensor "
-            "data, and disease management. Answer using the provided retrieved agricultural "
-            "knowledge, database sensor readings, and disease detection records. Do not invent "
-            "measurements or detections. Distinguish documented guidance from measured readings and "
-            "model predictions. For symptoms, provide possible explanations rather than claiming "
-            "a definitive diagnosis. Cite source document names and include timestamps where "
-            "available.\n\n"
-            "For any question asking about today's records, use only records explicitly labeled "
-            "as recorded today to answer for today. If there are none, state that no such records "
-            "were recorded today and, when provided, give the timestamp and details of the latest "
-            "earlier record. Never present an earlier record as today's data.\n\n"
-            "Scope and missing-information policy: First determine whether the user's specific "
-            "question is about agriculture or can be answered by the supplied farm data or "
-            "knowledge. If it is unrelated to agriculture, or asks for information that is not "
-            "actually available in the supplied context (for example, live local weather), do not "
-            "answer from general knowledge and do not list unrelated sensor readings, detections, "
-            "or documents. Instead, respond with a brief, natural message tailored to the exact "
-            "question: acknowledge what they asked, clearly state that you do not have that "
-            "information or that it is outside your role, identify yourself in context as an expert "
-            "smart agriculture assistant focused on tomato cultivation, sensor data, and disease "
-            "management, and offer a relevant agriculture question you can help with. Vary the "
-            "wording naturally to fit each question; do not repeat one fixed fallback sentence. "
-            "If part of an in-scope question is answerable, answer only that supported part and "
-            "clearly identify what information is missing."
+            "Tu es un assistant expert en agriculture intelligente, spécialisé dans la culture "
+            "de la tomate, les données des capteurs et la gestion des maladies. Réponds toujours "
+            "en français, quelle que soit la langue de la question ou des documents. Réponds de "
+            "manière claire et naturelle. Utilise les connaissances agricoles récupérées, les "
+            "relevés de capteurs et les détections fournis. N’invente aucune mesure ni détection. "
+            "Distingue les recommandations documentées des mesures réelles et des prédictions "
+            "du modèle. Pour les symptômes, présente des explications possibles sans affirmer "
+            "qu’il s’agit d’un diagnostic certain. Cite les documents sources et les horodatages "
+            "lorsqu’ils sont disponibles.\n\n"
+            "Pour toute question sur les données d’aujourd’hui, utilise uniquement les données "
+            "explicitement indiquées comme enregistrées aujourd’hui. S’il n’y en a pas, précise-le "
+            "et, si elle est fournie, indique la date et les détails de la dernière donnée "
+            "antérieure. Ne présente jamais une donnée antérieure comme une donnée d’aujourd’hui.\n\n"
+            "Périmètre et informations manquantes : détermine d’abord si la question porte sur "
+            "l’agriculture ou peut être résolue à partir des données et connaissances fournies. "
+            "Si elle est hors sujet ou demande une information absente du contexte (par exemple, "
+            "la météo locale en temps réel), ne réponds pas à partir de connaissances générales "
+            "et ne cite pas de relevés, de détections ou de documents sans rapport. Réponds "
+            "brièvement et naturellement en français : indique que cette information n’est pas "
+            "disponible ou que la demande sort de ton rôle, rappelle que tu aides sur l’agriculture "
+            "et propose une question agricole pertinente. Adapte la formulation à la demande au "
+            "lieu de répéter une phrase de repli fixe. Si une partie de la question peut recevoir "
+            "une réponse étayée, réponds uniquement à cette partie et précise ce qui manque.\n\n"
+            "Pour les conseils agricoles, les extraits récupérés depuis la base de connaissances "
+            "sont la source de référence. Si aucun extrait pertinent n’a été trouvé, indique que "
+            "les documents importés ne contiennent pas assez d’informations. Ne complète pas les "
+            "informations manquantes avec des connaissances générales. Les questions sur les "
+            "capteurs et les détections peuvent s’appuyer sur les données correspondantes fournies."
         )
         if asks_for_disease_guidance:
             system_instruction += (
-                "\n\nFor this disease-treatment question, format the answer in Markdown using "
-                "these sections in this order:\n"
-                "## 1. Disease Overview\n"
-                "Identify the disease being asked about. Include the causal organism and favorable "
-                "conditions (including temperature and humidity) only when supported by the "
-                "retrieved guide; otherwise say the guide does not specify them.\n"
-                "## 2. Symptoms and Management\n"
-                "Summarize documented symptoms, then use ### A. Environmental Management for "
-                "cultural practices and ### B. Chemical Treatment for any named products in the "
-                "retrieved guide. Put named chemical products and their documented purpose in a "
-                "Markdown table. Do not invent products, doses, application schedules, or efficacy. "
-                "If the guide names no chemical products, say so. Include this safety note: use "
-                "only products approved for the crop in the user's country, follow the product "
-                "label, and consult a local agricultural specialist before applying chemicals.\n"
-                "## 3. Prevention Strategies\n"
-                "Present documented prevention practices and recommendations in a Markdown table. "
-                "Do not invent unsupported practices.\n"
-                "Keep the disease name and facts aligned with the user's question and retrieved "
-                "sources. If the retrieved guide does not cover the requested disease or a detail, "
-                "state that clearly rather than filling gaps from guesswork. Cite the source "
-                "document name(s)."
+                "\n\nPour cette question sur une maladie ou son traitement, réponds en Markdown "
+                "avec les sections suivantes, dans cet ordre :\n"
+                "## 1. Présentation de la maladie\n"
+                "Identifie la maladie demandée. Indique l’agent pathogène et les conditions "
+                "favorables (notamment la température et l’humidité) uniquement si le guide "
+                "récupéré les confirme ; sinon, précise que le guide ne les indique pas.\n"
+                "## 2. Symptômes et prise en charge\n"
+                "Résume les symptômes documentés, puis utilise ### A. Gestion environnementale "
+                "pour les pratiques culturales et ### B. Traitement chimique pour les produits "
+                "nommés dans le guide. Présente les produits et leur usage documenté dans un "
+                "tableau Markdown. N’invente ni produit, ni dose, ni calendrier d’application, "
+                "ni efficacité. Si aucun produit chimique n’est cité dans le guide, indique-le. "
+                "Ajoute cette précaution : n’utilise que des produits autorisés pour cette culture "
+                "dans le pays de l’utilisateur, respecte l’étiquette et consulte un spécialiste "
+                "agricole local avant toute application.\n"
+                "## 3. Prévention\n"
+                "Présente les pratiques de prévention documentées dans un tableau Markdown. "
+                "N’ajoute aucune pratique non étayée.\n"
+                "Fais correspondre la maladie et les faits à la question et aux sources récupérées. "
+                "Si le guide ne traite pas la maladie ou un détail demandé, précise-le au lieu de "
+                "deviner. Cite le nom des documents sources."
             )
         if asks_for_all_sensor_readings:
             if requested_sensor_count is not None:
                 system_instruction += (
-                    f"\n\nThe user asked for the {requested_sensor_count} most recent sensor "
-                    "readings. Use all records supplied in the context; do not claim historical "
-                    "readings are unavailable when they are present. Present each supplied record "
-                    "with its timestamp and readings. The application also displays these records "
-                    "in a table."
+                    f"\n\nL’utilisateur demande les {requested_sensor_count} relevés de capteurs "
+                    "les plus récents. Utilise tous les relevés fournis ; ne prétends pas que "
+                    "l’historique est indisponible s’il est présent. Présente chaque relevé avec "
+                    "son horodatage et ses mesures. L’application affiche également ces relevés "
+                    "dans un tableau."
                 )
             else:
                 system_instruction += (
-                    "\n\nThe user asked for all sensor readings. Use the complete sensor history "
-                    "provided in the context, not only the latest reading. Present every supplied "
-                    "record with its timestamp and readings; do not omit older records or summarize "
-                    "the history as a single latest value. The application also displays these records "
-                    "in a table."
+                    "\n\nL’utilisateur demande tous les relevés de capteurs. Utilise l’historique "
+                    "complet fourni, pas seulement la dernière mesure. Présente chaque relevé avec "
+                    "son horodatage et ses mesures ; n’omet aucun relevé ancien et ne résume pas "
+                    "l’historique à la seule dernière valeur. L’application affiche également "
+                    "ces relevés dans un tableau."
                 )
 
         chat_chain = (
@@ -697,7 +801,7 @@ class ChatService:
         )
 
         if not answer or not answer.strip():
-            raise RuntimeError("The AI model returned an empty answer.")
+            raise RuntimeError("Le modèle d’IA a renvoyé une réponse vide.")
 
         return {
             "session_id": session_id,

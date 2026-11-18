@@ -2,6 +2,14 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import LogoutButton from '../components/LogoutButton';
 import API from '../services/app';
+import {
+  asksForAllDiseaseDetections,
+  asksForDetectionHistory,
+  DISEASE_CHART_COLORS,
+  getDiseaseChartGradient,
+  getDiseaseDistribution,
+  normalizeChatText,
+} from '../utils/diseaseDetectionChart';
 
 const sensorMetrics = [
   { key: 'ph', label: 'pH', unit: '' },
@@ -14,16 +22,24 @@ const sensorMetrics = [
 ];
 
 function getRequestedSensorMetrics(question) {
-  const normalizedQuestion = question.toLowerCase();
+  const normalizedQuestion = normalizeChatText(question);
   const metrics = sensorMetrics.filter(({ key, label }) => {
     const terms = {
       ph: [/\bp\s*h\b|\bph\b/],
       tds: [/\btds\b/],
-      temperature: [/\bair temperature\b/, /\btemperature\b(?!\s*(?:of|in)\s*water)/],
-      humidity: [/\bhumidity\b/],
-      water_temperature: [/\bwater temperature\b/, /\btemperature of (?:the )?water\b/],
-      water_level: [/\bwater level\b/],
-      light: [/\blight\b/, /\blux\b/],
+      temperature: [
+        /\bair temperature\b/,
+        /\btemperature (?:of (?:the )?air|de l air)\b/,
+        /\btemperature\b(?!\s*(?:(?:of|in)\s*(?:the\s*)?water|de\s*(?:l\s*)?eau))/,
+      ],
+      humidity: [/\bhumidity\b/, /\bhumidite\b/],
+      water_temperature: [
+        /\bwater temperature\b/,
+        /\btemperature of (?:the )?water\b/,
+        /\btemperature de l eau\b/,
+      ],
+      water_level: [/\bwater level\b/, /\bniveau d eau\b/],
+      light: [/\blight\b/, /\blux\b/, /\blumiere\b/],
     }[key];
     return terms.some((term) => term.test(normalizedQuestion)) || normalizedQuestion.includes(label.toLowerCase());
   });
@@ -31,8 +47,8 @@ function getRequestedSensorMetrics(question) {
   if (metrics.length > 0) return metrics;
 
   const asksAboutSensorData =
-    /\b(current|currently|latest|now|sensor|reading|measurement)\b/.test(normalizedQuestion)
-    || /\bmy\b/.test(normalizedQuestion);
+    /\b(current|currently|latest|now|sensor|reading|measurement|capteur|releve|mesure|lecture|actuel|actuellement|maintenant|dernier)\w*\b/.test(normalizedQuestion)
+    || /\b(my|mon|ma|mes)\b/.test(normalizedQuestion);
   return asksAboutSensorData ? sensorMetrics : [];
 }
 
@@ -42,11 +58,6 @@ function formatReadingTimestamp(timestamp) {
   return Number.isNaN(parsedTimestamp.getTime())
     ? String(timestamp)
     : parsedTimestamp.toLocaleString();
-}
-
-function asksForDetectionHistory(question) {
-  return /\b(detect\w*|diagnos\w*|image\w*|photo\w*|picture\w*|history|record\w*|found|seen)\b/i.test(question)
-    && /\b(disease\w*|detect\w*|image\w*|photo\w*|picture\w*|diagnos\w*|infection\w*|infected|sick|blight|spot|mildew|mosaic|rust|rot|wilt|canker|scab|septoria|anthracnose|target)\b/i.test(question);
 }
 
 function getDetectionImageUrl(imagePath) {
@@ -240,6 +251,51 @@ function StructuredAnswerCards({ answer }) {
   );
 }
 
+function DiseaseDetectionPieChart({ detections }) {
+  const distribution = getDiseaseDistribution(detections);
+  if (distribution.length === 0) return null;
+
+  const total = detections.length;
+  const chartDescription = distribution
+    .map(({ disease, proportion }) => `${disease} : ${(proportion * 100).toFixed(1)} %`)
+    .join(', ');
+
+  return (
+    <div className="grid gap-4 border-t border-outline-variant/30 p-4 sm:grid-cols-[auto_1fr] sm:items-center">
+      <div
+        aria-label={`Répartition des maladies détectées : ${chartDescription}`}
+        className="mx-auto h-40 w-40 rounded-full"
+        role="img"
+        style={{ background: getDiseaseChartGradient(distribution) }}
+      />
+      <div className="space-y-3">
+        <p className="text-label-sm font-label-sm font-semibold text-on-surface">
+          Proportions sur {total} détections
+        </p>
+        <ul className="grid gap-2 sm:grid-cols-2">
+          {distribution.map((entry, index) => (
+            <li className="flex items-center justify-between gap-3 text-label-sm font-label-sm" key={entry.disease}>
+              <span className="flex min-w-0 items-center gap-2 text-on-surface-variant">
+                <span
+                  aria-hidden="true"
+                  className="h-3 w-3 shrink-0 rounded-sm"
+                  style={{
+                    backgroundColor: DISEASE_CHART_COLORS[index % DISEASE_CHART_COLORS.length],
+                  }}
+                />
+                <span className="truncate">{entry.disease}</span>
+              </span>
+              <span className="shrink-0 font-semibold text-on-surface">
+                {entry.count} ({(entry.proportion * 100).toFixed(1)}%)
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
 export default function AI_Telemetry() {
   const [message, setMessage] = useState('');
   const [chatMessages, setChatMessages] = useState([]);
@@ -287,6 +343,7 @@ export default function AI_Telemetry() {
           sensorMetrics: getRequestedSensorMetrics(userMessage),
           diseaseDetections: data.disease_detections ?? [],
           showDiseaseDetections: asksForDetectionHistory(userMessage),
+          showDiseaseChart: asksForAllDiseaseDetections(userMessage),
           time: new Date().toLocaleTimeString([], {
             hour: 'numeric',
             minute: '2-digit',
@@ -298,7 +355,7 @@ export default function AI_Telemetry() {
       setChatError(
         typeof detail === 'string'
           ? detail
-          : 'Unable to get an answer right now. Please try again.',
+          : 'Impossible d’obtenir une réponse pour le moment. Veuillez réessayer.',
       );
     } finally {
       setIsSending(false);
@@ -814,6 +871,9 @@ export default function AI_Telemetry() {
                         <h3 className="bg-surface-container-low px-3 py-2 text-label-sm font-label-sm font-semibold text-on-surface">
                           Disease detection history ({chatMessage.diseaseDetections.length})
                         </h3>
+                        {chatMessage.showDiseaseChart && chatMessage.diseaseDetections.length > 0 && (
+                          <DiseaseDetectionPieChart detections={chatMessage.diseaseDetections} />
+                        )}
                         {chatMessage.diseaseDetections.length > 0 ? (
                           <div className="grid grid-cols-1 gap-3 p-3 sm:grid-cols-2">
                             {chatMessage.diseaseDetections.map((detection, detectionIndex) => (

@@ -39,12 +39,18 @@ async def send_chat_message(
     current_user: User = Depends(get_current_user),
 ):
     """
-    Processes a chat turn using DATABASE_URL from .env and the Gemini API key.
+    Traite un message du chatbot avec la base de données et la clé Gemini.
     """
     if not DATABASE_URL:
-        raise HTTPException(status_code=500, detail="DATABASE_URL is not set in environment variables.")
+        raise HTTPException(
+            status_code=500,
+            detail="DATABASE_URL n’est pas défini dans les variables d’environnement.",
+        )
     if not GEMINI_API_KEY:
-        raise HTTPException(status_code=500, detail="GEMINI_API_KEY is not set in environment variables.")
+        raise HTTPException(
+            status_code=500,
+            detail="GEMINI_API_KEY n’est pas défini dans les variables d’environnement.",
+        )
 
     db_pool = None
     try:
@@ -68,8 +74,11 @@ async def send_chat_message(
         )
         return ChatResponse(**result)
         
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erreur lors du traitement de votre message : {exc}",
+        ) from exc
         
     finally:
         if db_pool:

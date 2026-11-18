@@ -1,4 +1,5 @@
 
+import logging
 import os
 import uuid
 import time
@@ -12,14 +13,18 @@ from google.genai import types
 from dotenv import load_dotenv
 
 from app.models.documentModel import Document, DocumentChunk
+from app.ai.rag.chroma_store import (
+    EMBEDDING_DIMENSIONS,
+    get_chroma_store,
+)
 
 load_dotenv()
 
+logger = logging.getLogger(__name__)
 UPLOAD_DIR = Path("static/documents")
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 EMBEDDING_MODEL = "gemini-embedding-2"
-EMBEDDING_DIMENSIONS = 768
 MAX_RETRIES = 4
 MAX_FILE_SIZE = 100 * 1024 * 1024
 
@@ -173,7 +178,9 @@ class DocumentExtractorService:
                     "No text chunks were generated from the document."
                 )
 
-            # 5. Generate embeddings and add chunks to PostgreSQL.
+            # 5. Generate embeddings and add chunk text to PostgreSQL.
+            db_chunks = []
+            chunk_embeddings = []
             for idx, chunk_content in enumerate(chunks):
                 embed_response = _call_with_retry(
                     lambda: self.client.models.embed_content(
@@ -205,12 +212,24 @@ class DocumentExtractorService:
                     document_id=db_doc.id,
                     chunk_index=idx,
                     content=chunk_content,
-                    embedding=vector_embedding,
                 )
 
                 self.db.add(db_chunk)
+                db_chunks.append(db_chunk)
+                chunk_embeddings.append(vector_embedding)
 
-            # 6. Commit the document and all chunks together.
+            self.db.flush()
+            get_chroma_store().upsert_document_chunks(
+                document_id=db_doc.id,
+                user_id=user_id,
+                filename=original_filename,
+                chunk_ids=[chunk.id for chunk in db_chunks],
+                chunks=[chunk.content for chunk in db_chunks],
+                embeddings=chunk_embeddings,
+                chunk_indexes=[chunk.chunk_index for chunk in db_chunks],
+            )
+
+            # 6. Commit the document and chunks after indexing them.
             self.db.commit()
             self.db.refresh(db_doc)
 
@@ -218,6 +237,15 @@ class DocumentExtractorService:
 
         except Exception as exc:
             self.db.rollback()
+
+            if db_doc is not None and db_doc.id is not None:
+                try:
+                    get_chroma_store().delete_document(db_doc.id)
+                except Exception:
+                    logger.exception(
+                        "Chroma cleanup failed for document %s.",
+                        db_doc.id,
+                    )
 
             # Remove the saved file if processing failed.
             if file_path is not None:
