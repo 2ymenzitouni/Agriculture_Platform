@@ -15,6 +15,7 @@ from app.ai.rag.chroma_store import migrate_legacy_embeddings
 from app.models.usersModel import User
 from app.models.plantModel import Plant
 from app.models.chatModel import ChatSession
+from app.models.chatMessageModel import ChatMessage
 from app.models.sensor_readingsModel import SensorReading
 from app.models.documentModel import Document, DocumentChunk
 from app.models.disease_detectionModel import DiseaseDetection

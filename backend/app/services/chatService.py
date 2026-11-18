@@ -12,6 +12,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from app.ai.rag.chroma_store import EMBEDDING_DIMENSIONS, get_chroma_store
 
 EMBEDDING_MODEL = "gemini-embedding-2"
+SENSOR_CHART_READING_LIMIT = 50
 SENSOR_READING_COUNT_WORDS = {
     "un": 1,
     "une": 1,
@@ -71,6 +72,45 @@ def _asks_for_sensor_data(question: str) -> bool:
             question,
         )
     )
+
+
+def _asks_for_sensor_chart(
+    question: str,
+    requested_sensor_count: int | None = None,
+) -> bool:
+    asks_for_measurements_or_trends = _asks_for_sensor_data(question) and bool(
+        re.search(
+            r"\b(readings?|measurements?|history|historical|trend\w*|"
+            r"over\s+time|releves?|mesures?|lectures?|historique|"
+            r"tendance\w*|evolution)\b",
+            question,
+        )
+    )
+    asks_for_latest = bool(
+        re.search(
+            r"\b(current|currently|now|right\s+now|latest|most\s+recent|"
+            r"actuel\w*|maintenant|en\s+ce\s+moment)\b",
+            question,
+        )
+    )
+    return asks_for_measurements_or_trends and (
+        not asks_for_latest or requested_sensor_count is not None
+    )
+
+
+def _format_conversation_history(messages: list[dict]) -> str:
+    history_lines = []
+    for message in messages:
+        role = message.get("role")
+        content = str(message.get("content") or "").strip()
+        if role not in {"user", "assistant"} or not content:
+            continue
+        speaker = "Utilisateur" if role == "user" else "Assistant"
+        history_lines.append(f"{speaker} : {content}")
+
+    if not history_lines:
+        return ""
+    return "--- HISTORIQUE DE LA CONVERSATION ---\n" + "\n".join(history_lines)
 
 
 def _mentions_today(question: str) -> bool:
@@ -172,7 +212,11 @@ class ChatService:
         self.chat_prompt = ChatPromptTemplate.from_messages(
             [
                 ("system", "{system_instruction}"),
-                ("human", "{context}\nQuestion de l’utilisateur : {question}"),
+                (
+                    "human",
+                    "{context}\n{conversation_history}\n"
+                    "Question de l’utilisateur : {question}",
+                ),
             ]
         )
 
@@ -362,8 +406,9 @@ class ChatService:
     async def process_chat_turn(
         self,
         user_id: UUID,
-        session_id: int,
+        session_id: UUID,
         user_message: str,
+        conversation_history: list[dict] | None = None,
     ) -> dict:
         question = user_message.strip()
         if not question:
@@ -433,6 +478,10 @@ class ChatService:
                 )
             )
             and asks_for_sensor_data
+        )
+        asks_for_sensor_chart = _asks_for_sensor_chart(
+            normalized_question,
+            requested_sensor_count,
         )
         mentions_today = _mentions_today(normalized_question)
         asks_for_sensor_today = mentions_today and asks_for_sensor_data
@@ -707,6 +756,9 @@ class ChatService:
                     "sont inclus dans ce contexte. L’application affiche tous les enregistrements.\n"
                 )
 
+        conversation_history_str = _format_conversation_history(
+            conversation_history or []
+        )
         system_instruction = (
             "Tu es un assistant expert en agriculture intelligente, spécialisé dans la culture "
             "de la tomate, les données des capteurs et la gestion des maladies. Réponds toujours "
@@ -737,6 +789,12 @@ class ChatService:
             "informations manquantes avec des connaissances générales. Les questions sur les "
             "capteurs et les détections peuvent s’appuyer sur les données correspondantes fournies."
         )
+        if conversation_history_str:
+            system_instruction += (
+                "\n\nUtilise l’historique de conversation uniquement pour comprendre les "
+                "références ; les faits doivent rester fondés sur les sources et les données "
+                "fournies pour ce tour."
+            )
         if asks_for_disease_guidance:
             system_instruction += (
                 "\n\nPour cette question sur une maladie ou son traitement, réponds en Markdown "
@@ -796,12 +854,23 @@ class ChatService:
             {
                 "system_instruction": system_instruction,
                 "context": context_str,
+                "conversation_history": conversation_history_str,
                 "question": question,
             }
         )
 
         if not answer or not answer.strip():
             raise RuntimeError("Le modèle d’IA a renvoyé une réponse vide.")
+
+        sensor_chart_readings: list[dict] = []
+        if asks_for_sensor_chart:
+            if asks_for_sensor_today:
+                reading_limit = requested_sensor_count or SENSOR_CHART_READING_LIMIT
+                sensor_chart_readings = sensor_readings_today[:reading_limit]
+            elif requested_sensor_count is not None:
+                sensor_chart_readings = sensor_readings[:requested_sensor_count]
+            else:
+                sensor_chart_readings = sensor_readings[:SENSOR_CHART_READING_LIMIT]
 
         return {
             "session_id": session_id,
@@ -827,6 +896,7 @@ class ChatService:
                 if asks_for_current_sensor or asks_for_sensor_data
                 else []
             ),
+            "sensor_chart_readings": sensor_chart_readings,
             "detection_snapshot": (
                 disease_detections_today[0]
                 if asks_for_detections_today and disease_detections_today
