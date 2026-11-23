@@ -13,7 +13,9 @@ from app.models.plantModel import Plant
 from app.models.sensor_readingsModel import SensorReading
 from app.models.usersModel import User
 from app.routes.chatRoute import (
+    clear_chat_sessions,
     create_chat_session,
+    delete_chat_session,
     list_chat_messages,
     list_chat_sessions,
 )
@@ -91,6 +93,52 @@ class ChatSessionRouteTests(unittest.TestCase):
                 db=self.db,
             )
         self.assertEqual(error.exception.status_code, 404)
+
+    def test_clear_sessions_removes_only_current_users_conversations(self) -> None:
+        current_session = create_chat_session(current_user=self.user, db=self.db)
+        other_user = User(
+            name="Other User",
+            email="other@example.com",
+            password_hash="not-a-real-password",
+        )
+        self.db.add(other_user)
+        self.db.commit()
+        other_session = create_chat_session(current_user=other_user, db=self.db)
+        self.db.add_all([
+            ChatMessage(
+                session_id=current_session.id,
+                role="user",
+                content="Question",
+            ),
+            ChatMessage(
+                session_id=other_session.id,
+                role="user",
+                content="Other question",
+            ),
+        ])
+        self.db.commit()
+
+        clear_chat_sessions(current_user=self.user, db=self.db)
+
+        self.assertEqual(list_chat_sessions(current_user=self.user, db=self.db), [])
+        self.assertEqual(len(list_chat_sessions(current_user=other_user, db=self.db)), 1)
+
+    def test_delete_session_removes_messages(self) -> None:
+        chat_session = create_chat_session(current_user=self.user, db=self.db)
+        self.db.add(ChatMessage(
+            session_id=chat_session.id,
+            role="user",
+            content="Question",
+        ))
+        self.db.commit()
+
+        delete_chat_session(
+            session_id=chat_session.id,
+            current_user=self.user,
+            db=self.db,
+        )
+
+        self.assertEqual(list_chat_sessions(current_user=self.user, db=self.db), [])
 
 
 if __name__ == "__main__":

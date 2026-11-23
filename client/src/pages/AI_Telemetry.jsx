@@ -513,25 +513,20 @@ export default function AI_Telemetry() {
   useEffect(() => {
     let isActive = true;
 
-    async function loadSessions() {
+    async function clearStoredSessions() {
       try {
-        const { data: sessions } = await API.get('/chat/sessions');
+        await API.delete('/chat/sessions');
         if (!isActive) return;
-        setChatSessions(sessions);
-        if (sessions.length > 0) {
-          setActiveSessionId(sessions[0].id);
-          setIsLoadingMessages(true);
-          const { data: storedMessages } = await API.get(
-            `/chat/sessions/${sessions[0].id}/messages`,
-          );
-          if (!isActive) return;
-          setChatMessages(storedMessages.map(mapStoredChatMessage));
-        }
+        setChatSessions([]);
+        setActiveSessionId(null);
+        setChatMessages([]);
+        setChatError('');
+        setIsLoadingMessages(false);
       } catch (error) {
         if (isActive) {
           setSessionError(
             error.response?.data?.detail
-            ?? 'Unable to load your chat sessions. Please try again.',
+            ?? 'Unable to clear your chat sessions. Please try again.',
           );
         }
       } finally {
@@ -542,7 +537,7 @@ export default function AI_Telemetry() {
       }
     }
 
-    loadSessions();
+    clearStoredSessions();
     return () => {
       isActive = false;
       sessionLoadRef.current += 1;

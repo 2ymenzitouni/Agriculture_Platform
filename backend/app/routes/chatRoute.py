@@ -1,6 +1,6 @@
 import os
 from uuid import UUID
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel, Field
 from typing import Optional
@@ -100,6 +100,53 @@ def create_chat_session(
     db.commit()
     db.refresh(chat_session)
     return chat_session
+
+
+@router.delete("/sessions", status_code=204)
+def clear_chat_sessions(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    session_ids = [
+        session_id
+        for (session_id,) in db.query(ChatSession.id)
+        .filter(ChatSession.user_id == current_user.id)
+        .all()
+    ]
+    if session_ids:
+        db.query(ChatMessage).filter(
+            ChatMessage.session_id.in_(session_ids)
+        ).delete(synchronize_session=False)
+        db.query(ChatSession).filter(
+            ChatSession.id.in_(session_ids)
+        ).delete(synchronize_session=False)
+        db.commit()
+    return Response(status_code=204)
+
+
+@router.delete("/sessions/{session_id}", status_code=204)
+def delete_chat_session(
+    session_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    chat_session = (
+        db.query(ChatSession)
+        .filter(
+            ChatSession.id == session_id,
+            ChatSession.user_id == current_user.id,
+        )
+        .first()
+    )
+    if chat_session is None:
+        raise HTTPException(status_code=404, detail="Conversation introuvable.")
+
+    db.query(ChatMessage).filter(
+        ChatMessage.session_id == session_id
+    ).delete(synchronize_session=False)
+    db.delete(chat_session)
+    db.commit()
+    return Response(status_code=204)
 
 
 @router.get(
