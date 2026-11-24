@@ -59,6 +59,61 @@ def _normalize_text(value: str) -> str:
     return re.sub(r"[_'’\-]+", " ", without_accents)
 
 
+def _is_out_of_scope_question(
+    question: str,
+    conversation_history: list[dict] | None = None,
+) -> bool:
+    explicit_unrelated_topics = re.compile(
+        r"\b("
+        r"python|javascript|typescript|java|c\\+\\+|programming|code|coding|"
+        r"software|computer|internet|website|app|android|windows|linux|"
+        r"math|mathematics|calculus|equation|physics|chemistry|biology|"
+        r"movie|film|music|song|game|football|basketball|politics|president|"
+        r"election|country|capital|geography|celebrity|recipe|"
+        r"cuisine|cook|cooking|python|weather forecast|stock|cryptocurrency|"
+        r"programmation|logiciel|informatique|ordinateur|internet|site web|"
+        r"mathematique|physique|chimie|biologie|film|musique|chanson|jeu|"
+        r"football|politique|president|election|pays|capitale|geographie|"
+        r"celebrite|recette|cuisine|cuisson|bourse|cryptomonnaie"
+        r")\b",
+        re.IGNORECASE,
+    )
+    normalized_question = _normalize_text(question)
+    if explicit_unrelated_topics.search(normalized_question):
+        return True
+
+    agriculture_topics = re.compile(
+        r"\b("
+        r"agri|farm|farming|crop|crops|plant|plants|tomato|tomatoes|soil|"
+        r"seed|seeds|seedling|harvest|irrigation|fertiliz|pesticide|"
+        r"fungicide|disease|diseases|blight|mildew|mold|mould|rust|rot|"
+        r"wilt|leaf|leaves|greenhouse|hydropon|nutrient|nutrients|"
+        r"sensor|sensors|reading|readings|humidity|temperature|ph|tds|"
+        r"water level|light|lux|detection|detections|"
+        r"agriculture|agricole|exploitation|ferme|culture|cultures|"
+        r"plante|plantes|tomate|tomates|sol|semence|semences|semis|"
+        r"recolte|irrigation|engrais|pesticide|fongicide|maladie|maladies|"
+        r"mildiou|oidium|moisissure|rouille|pourriture|fletrissement|"
+        r"feuille|feuilles|serre|hydroponique|nutriment|nutriments|"
+        r"capteur|capteurs|releve|releves|mesure|mesures|humidite|"
+        r"temperature|niveau d eau|lumiere|de tection|detections"
+        r")\b",
+        re.IGNORECASE,
+    )
+    if agriculture_topics.search(normalized_question):
+        return False
+
+    history_text = " ".join(
+        str(message.get("content") or "")
+        for message in (conversation_history or [])
+        if message.get("role") in {"user", "assistant"}
+    )
+    if history_text and agriculture_topics.search(_normalize_text(history_text)):
+        return False
+
+    return True
+
+
 def _normalized_name_tokens(value: str | None) -> list[str]:
     return re.findall(r"[a-z0-9]+", _normalize_text(value or ""))
 
@@ -415,6 +470,26 @@ class ChatService:
             raise ValueError("Veuillez saisir une question.")
 
         normalized_question = _normalize_text(question)
+        if _is_out_of_scope_question(normalized_question, conversation_history):
+            uses_french = bool(re.search(r"\b(le|la|les|de|du|des|est|dans|pour|avec|bonjour|comment|quelle|quel)\b", normalized_question))
+            answer = (
+                "Je peux uniquement vous aider avec l’agriculture, les cultures, "
+                "les relevés de capteurs et les détections de maladies."
+                if uses_french
+                else "I can only help with agriculture, crops, sensor readings, and disease detections."
+            )
+            return {
+                "session_id": session_id,
+                "answer": answer,
+                "sources_used": [],
+                "sensor_snapshot": {},
+                "sensor_readings": [],
+                "sensor_chart_readings": [],
+                "detection_snapshot": {},
+                "detection_history": [],
+                "disease_detections": [],
+            }
+
         asks_for_sensor_data = _asks_for_sensor_data(normalized_question)
         count_pattern = (
             r"(\d+|one|two|three|four|five|six|seven|eight|nine|ten|"

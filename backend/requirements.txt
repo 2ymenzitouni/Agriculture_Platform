@@ -12,6 +12,7 @@ python-multipart>=0.0.9
 google-genai>=2.20.0
 langchain-google-genai>=4.4.3,<5.0.0
 python-dotenv
-psycopg2-binary pypdf
+psycopg2-binary
+pypdf
 asyncpg
 chromadb>=1.0.0,<2.0.0

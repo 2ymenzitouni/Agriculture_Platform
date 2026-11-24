@@ -4,6 +4,7 @@ from app.services.chatService import (
     _format_conversation_history,
     _asks_for_sensor_chart,
     _asks_for_sensor_data,
+    _is_out_of_scope_question,
     _mentions_today,
     _normalize_text,
 )
@@ -51,6 +52,18 @@ class FrenchChatLanguageTests(unittest.TestCase):
             "--- HISTORIQUE DE LA CONVERSATION ---\n"
             "Utilisateur : First question\nAssistant : First answer",
         )
+
+    def test_explicit_unrelated_questions_are_out_of_scope(self) -> None:
+        self.assertTrue(_is_out_of_scope_question("Write a Python sorting algorithm"))
+        self.assertTrue(_is_out_of_scope_question("Qui est le président de la France ?"))
+
+    def test_agriculture_questions_are_in_scope(self) -> None:
+        self.assertFalse(_is_out_of_scope_question("How should I irrigate my tomato plants?"))
+        self.assertFalse(_is_out_of_scope_question("Quel est mon dernier relevé de capteurs ?"))
+
+    def test_generic_follow_up_can_use_agricultural_history(self) -> None:
+        history = [{"role": "user", "content": "How should I treat tomato mildew?"}]
+        self.assertFalse(_is_out_of_scope_question("What should I do next?", history))
 
 
 if __name__ == "__main__":

@@ -1,4 +1,5 @@
 import os
+import re
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from fastapi.encoders import jsonable_encoder
@@ -18,7 +19,7 @@ from app.schemas.chatSchema import (
     ChatSessionListItem,
     ChatSessionResponse,
 )
-from app.services.chatService import ChatService
+from app.services.chatService import ChatService, _is_out_of_scope_question, _normalize_text
 
 # Load environment variables from .env file
 load_dotenv()
@@ -187,7 +188,7 @@ async def send_chat_message(
     db: Session = Depends(get_db),
 ):
     """
-    Traite un message du chatbot avec la base de données et la clé Gemini.
+    Traite un message du chatbot avec la base de données et Gemini.
     """
     if not DATABASE_URL:
         raise HTTPException(
@@ -216,6 +217,30 @@ async def send_chat_message(
         raise HTTPException(status_code=404, detail="Conversation introuvable.")
 
     chat_session_id = chat_session.id
+    normalized_question = _normalize_text(user_message)
+    if _is_out_of_scope_question(normalized_question):
+        uses_french = bool(re.search(
+            r"\b(le|la|les|de|du|des|est|dans|pour|avec|bonjour|comment|quelle|quel)\b",
+            normalized_question,
+        ))
+        answer = (
+            "Je peux uniquement vous aider avec l’agriculture, les cultures, "
+            "les relevés de capteurs et les détections de maladies."
+            if uses_french
+            else "I can only help with agriculture, crops, sensor readings, and disease detections."
+        )
+        return ChatResponse(
+            session_id=chat_session_id,
+            answer=answer,
+            sources_used=[],
+            sensor_snapshot=None,
+            sensor_readings=[],
+            sensor_chart_readings=[],
+            detection_snapshot=None,
+            detection_history=[],
+            disease_detections=[],
+        )
+
     db_pool = None
     try:
         conversation_history = [
